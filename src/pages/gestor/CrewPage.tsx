@@ -14,7 +14,7 @@ interface ProfileWithEmail {
 export function CrewPage() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'tripulante' as const })
+  const [form, setForm] = useState<{ name: string; email: string; password: string; role: string }>({ name: '', email: '', password: '', role: 'tripulante' })
   const [createdInfo, setCreatedInfo] = useState<{ email: string; password: string } | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
 

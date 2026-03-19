@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
-import { Plus, Pencil, Trash2, Users, UserPlus, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Users, UserPlus } from 'lucide-react'
 
 export function GroupsPage() {
   const queryClient = useQueryClient()
