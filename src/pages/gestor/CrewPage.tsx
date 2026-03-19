@@ -14,7 +14,7 @@ interface UserProfile {
 export function CrewPage() {
   const queryClient = useQueryClient()
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', role: 'tripulante' })
+  const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', role: 'tripulante', groupIds: [] as string[] })
   const [createdInfo, setCreatedInfo] = useState<{ email: string; password: string } | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null)
@@ -78,7 +78,7 @@ export function CrewPage() {
   // Create user
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc('admin_create_user', {
+      const { data: newUserId, error } = await supabase.rpc('admin_create_user', {
         user_email: createForm.email,
         user_password: createForm.password,
         user_name: createForm.name,
@@ -86,12 +86,19 @@ export function CrewPage() {
       })
       if (error) throw error
 
+      // Add user to selected groups
+      if (createForm.groupIds.length > 0 && newUserId) {
+        const rows = createForm.groupIds.map(gid => ({ user_id: newUserId, group_id: gid }))
+        await supabase.from('user_groups').insert(rows)
+      }
+
       return { email: createForm.email, password: createForm.password }
     },
     onSuccess: (info) => {
       setCreatedInfo(info)
       queryClient.invalidateQueries({ queryKey: ['gestor-users'] })
-      setCreateForm({ name: '', email: '', password: '', role: 'tripulante' })
+      queryClient.invalidateQueries({ queryKey: ['gestor-user-groups'] })
+      setCreateForm({ name: '', email: '', password: '', role: 'tripulante', groupIds: [] })
     },
   })
 
@@ -291,6 +298,55 @@ export function CrewPage() {
               </select>
             </div>
           </div>
+
+          {/* Turmas selection */}
+          {groups.length > 0 && (
+            <div className="mt-4">
+              <label className="block text-sm text-text-secondary mb-2">Turmas (acesso aos módulos)</label>
+              <div className="bg-bg-input border border-navy-700 rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                {groups.map((g: any) => {
+                  const isSelected = createForm.groupIds.includes(g.id)
+                  const groupModules = moduleGroups
+                    .filter((mg: any) => mg.group_id === g.id)
+                    .map((mg: any) => modules.find((m: any) => m.id === mg.module_id))
+                    .filter(Boolean)
+                  return (
+                    <label key={g.id} className="flex items-start gap-3 cursor-pointer hover:bg-bg-card-hover p-2 rounded-lg">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {
+                          setCreateForm(f => ({
+                            ...f,
+                            groupIds: isSelected
+                              ? f.groupIds.filter(id => id !== g.id)
+                              : [...f.groupIds, g.id]
+                          }))
+                        }}
+                        className="w-4 h-4 rounded accent-red-veon mt-0.5"
+                      />
+                      <div>
+                        <span className="text-sm text-text-primary font-medium">{g.name}</span>
+                        {groupModules.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {groupModules.map((m: any) => (
+                              <span key={m.id} className="text-xs bg-navy-800 text-text-muted px-1.5 py-0.5 rounded">
+                                {m.title}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {groupModules.length === 0 && (
+                          <span className="text-xs text-text-muted">Nenhum módulo vinculado</span>
+                        )}
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {createMutation.isError && (
             <p className="text-red-veon text-sm mt-3">{(createMutation.error as Error).message}</p>
           )}
