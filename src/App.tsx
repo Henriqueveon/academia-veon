@@ -6,7 +6,6 @@ import { GestorGuard } from './components/layout/GestorGuard'
 import { LoginPage } from './pages/auth/LoginPage'
 import { TrainingPage } from './pages/tripulante/TrainingPage'
 import { ModulesPage } from './pages/gestor/ModulesPage'
-import { LessonsPage } from './pages/gestor/LessonsPage'
 import { CrewPage } from './pages/gestor/CrewPage'
 import { GroupsPage } from './pages/gestor/GroupsPage'
 import { AccessPage } from './pages/gestor/AccessPage'
@@ -31,7 +30,6 @@ function App() {
               <Route path="/treinamentos" element={<TrainingPage />} />
               <Route element={<GestorGuard />}>
                 <Route path="/gestor/modulos" element={<ModulesPage />} />
-                <Route path="/gestor/aulas" element={<LessonsPage />} />
                 <Route path="/gestor/tripulantes" element={<CrewPage />} />
                 <Route path="/gestor/turmas" element={<GroupsPage />} />
                 <Route path="/gestor/liberacoes" element={<AccessPage />} />

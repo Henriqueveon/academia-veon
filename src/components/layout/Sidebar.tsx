@@ -14,7 +14,6 @@ export function Sidebar() {
 
   const gestorLinks = [
     { path: '/gestor/modulos', label: 'Módulos', icon: Layers },
-    { path: '/gestor/aulas', label: 'Aulas', icon: BookOpen },
     { path: '/gestor/tripulantes', label: 'Tripulantes', icon: Users },
     { path: '/gestor/turmas', label: 'Turmas', icon: Shield },
     { path: '/gestor/liberacoes', label: 'Liberações', icon: Settings },
@@ -23,7 +22,7 @@ export function Sidebar() {
   const links = isGestor ? gestorLinks : tripulanteLinks
 
   return (
-    <aside className="fixed right-0 top-0 h-screen w-64 bg-bg-sidebar border-l border-navy-800 flex flex-col z-50">
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-bg-sidebar border-r border-navy-800 flex flex-col z-50">
       {/* Header */}
       <div className="p-6 border-b border-navy-800">
         <div className="flex items-center gap-3">
