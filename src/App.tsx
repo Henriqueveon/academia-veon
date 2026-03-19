@@ -1,0 +1,48 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AuthProvider } from './contexts/AuthContext'
+import { AppLayout } from './components/layout/AppLayout'
+import { GestorGuard } from './components/layout/GestorGuard'
+import { LoginPage } from './pages/auth/LoginPage'
+import { TrainingPage } from './pages/tripulante/TrainingPage'
+import { ModulesPage } from './pages/gestor/ModulesPage'
+import { LessonsPage } from './pages/gestor/LessonsPage'
+import { CrewPage } from './pages/gestor/CrewPage'
+import { GroupsPage } from './pages/gestor/GroupsPage'
+import { AccessPage } from './pages/gestor/AccessPage'
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2,
+      retry: 1,
+    },
+  },
+})
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<AppLayout />}>
+              <Route path="/treinamentos" element={<TrainingPage />} />
+              <Route element={<GestorGuard />}>
+                <Route path="/gestor/modulos" element={<ModulesPage />} />
+                <Route path="/gestor/aulas" element={<LessonsPage />} />
+                <Route path="/gestor/tripulantes" element={<CrewPage />} />
+                <Route path="/gestor/turmas" element={<GroupsPage />} />
+                <Route path="/gestor/liberacoes" element={<AccessPage />} />
+              </Route>
+            </Route>
+            <Route path="*" element={<Navigate to="/treinamentos" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
+  )
+}
+
+export default App
