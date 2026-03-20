@@ -213,11 +213,9 @@ function LessonCard({
 }) {
   const ytId = lesson.youtube_url ? extractYoutubeId(lesson.youtube_url) : null
   const bunnyId = lesson.bunny_video_id
-  const thumbnail = ytId
-    ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`
-    : bunnyId
-      ? `https://vz-6d04ab5b-6ae.b-cdn.net/${bunnyId}/thumbnail.jpg`
-      : null
+  const thumbnail = (lesson as any).thumbnail_url
+    || (ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null)
+    || (bunnyId ? `https://vz-6d04ab5b-6ae.b-cdn.net/${bunnyId}/thumbnail.jpg` : null)
 
   return (
     <div className="flex-shrink-0 w-60 md:w-72 bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors group/card">

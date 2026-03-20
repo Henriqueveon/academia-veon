@@ -21,7 +21,7 @@ export function TrainingDetailPage() {
   const [moduleForm, setModuleForm] = useState({ title: '', description: '', thumbnail_url: '', sort_order: 0 })
   const [expandedModule, setExpandedModule] = useState<string | null>(null)
   const [editingLesson, setEditingLesson] = useState<any>(null)
-  const [lessonForm, setLessonForm] = useState({ title: '', description: '', youtube_url: '', bunny_video_id: '', material_url: '', material_name: '', sort_order: 0 })
+  const [lessonForm, setLessonForm] = useState({ title: '', description: '', youtube_url: '', bunny_video_id: '', material_url: '', material_name: '', thumbnail_url: '', sort_order: 0 })
   const [videoSource, setVideoSource] = useState<'upload' | 'youtube'>('upload')
   const [selectedLesson, setSelectedLesson] = useState<any>(null)
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
@@ -99,6 +99,7 @@ export function TrainingDetailPage() {
           bunny_video_id: lessonForm.bunny_video_id || null,
           material_url: lessonForm.material_url || null,
           material_name: lessonForm.material_name || null,
+          thumbnail_url: lessonForm.thumbnail_url || null,
           sort_order: lessonForm.sort_order,
         }).eq('id', editingLesson.id)
       } else {
@@ -110,6 +111,7 @@ export function TrainingDetailPage() {
           bunny_video_id: lessonForm.bunny_video_id || null,
           material_url: lessonForm.material_url || null,
           material_name: lessonForm.material_name || null,
+          thumbnail_url: lessonForm.thumbnail_url || null,
           sort_order: lessonForm.sort_order,
         })
       }
@@ -134,7 +136,7 @@ export function TrainingDetailPage() {
   }
 
   function resetLessonForm() {
-    setLessonForm({ title: '', description: '', youtube_url: '', bunny_video_id: '', material_url: '', material_name: '', sort_order: 0 })
+    setLessonForm({ title: '', description: '', youtube_url: '', bunny_video_id: '', material_url: '', material_name: '', thumbnail_url: '', sort_order: 0 })
     setEditingLesson(null)
     setEditingLesson(null)
   }
@@ -158,6 +160,7 @@ export function TrainingDetailPage() {
       bunny_video_id: lesson.bunny_video_id || '',
       material_url: lesson.material_url || '',
       material_name: lesson.material_name || '',
+      thumbnail_url: lesson.thumbnail_url || '',
       sort_order: lesson.sort_order,
     })
     setVideoSource(lesson.bunny_video_id ? 'upload' : 'youtube')
@@ -372,6 +375,15 @@ export function TrainingDetailPage() {
                         />
                       </div>
                       <div className="col-span-1 md:col-span-2">
+                        <ImageUpload
+                          value={lessonForm.thumbnail_url}
+                          onChange={(url) => setLessonForm(f => ({ ...f, thumbnail_url: url }))}
+                          folder="aulas"
+                          label="Capa da Aula"
+                          hint="480 x 270 px (16:9)"
+                        />
+                      </div>
+                      <div className="col-span-1 md:col-span-2">
                         <label className="block text-xs text-text-secondary mb-1">Material de Apoio (link ou PDF)</label>
                         <div className="flex gap-2">
                           <input
@@ -431,11 +443,9 @@ export function TrainingDetailPage() {
                       {modLessons.map((lesson: any) => {
                         const ytId = lesson.youtube_url ? extractYoutubeId(lesson.youtube_url) : null
                         const bunnyId = lesson.bunny_video_id
-                        const thumbnail = ytId
-                          ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`
-                          : bunnyId
-                            ? `https://vz-6d04ab5b-6ae.b-cdn.net/${bunnyId}/thumbnail.jpg`
-                            : null
+                        const thumbnail = lesson.thumbnail_url
+                          || (ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null)
+                          || (bunnyId ? `https://vz-6d04ab5b-6ae.b-cdn.net/${bunnyId}/thumbnail.jpg` : null)
 
                         return (
                           <div key={lesson.id} className="flex-shrink-0 w-60 md:w-72 bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors group/card">
