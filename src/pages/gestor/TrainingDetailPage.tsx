@@ -366,7 +366,7 @@ export function TrainingDetailPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-text-secondary mb-1">Ordem</label>
+                        <label className="block text-xs text-text-secondary mb-1">Aula nº</label>
                         <input
                           type="number"
                           value={lessonForm.sort_order}
@@ -467,7 +467,7 @@ export function TrainingDetailPage() {
                                 <p className="text-xs text-text-muted mt-1 line-clamp-1">{lesson.description}</p>
                               )}
                               <div className="flex items-center gap-2 mt-2">
-                                <span className="text-xs text-text-muted">Ordem: {lesson.sort_order}</span>
+                                <span className="text-xs text-text-muted">Aula: {lesson.sort_order}</span>
                                 <div className="ml-auto flex gap-1">
                                   <button
                                     onClick={() => { setExpandedModule(mod.id); startEditLesson(lesson) }}
