@@ -5,10 +5,10 @@ import { Shield } from 'lucide-react'
 export function AccessPage() {
   const queryClient = useQueryClient()
 
-  const { data: modules = [] } = useQuery({
-    queryKey: ['gestor-modules'],
+  const { data: trainings = [] } = useQuery({
+    queryKey: ['gestor-trainings'],
     queryFn: async () => {
-      const { data } = await supabase.from('modules').select('*').order('sort_order')
+      const { data } = await supabase.from('trainings').select('*').order('sort_order')
       return data || []
     },
   })
@@ -21,29 +21,29 @@ export function AccessPage() {
     },
   })
 
-  const { data: moduleGroups = [] } = useQuery({
-    queryKey: ['gestor-module-groups'],
+  const { data: trainingGroups = [] } = useQuery({
+    queryKey: ['gestor-training-groups'],
     queryFn: async () => {
-      const { data } = await supabase.from('module_groups').select('*')
+      const { data } = await supabase.from('training_groups').select('*')
       return data || []
     },
   })
 
   const toggleAccess = useMutation({
-    mutationFn: async ({ moduleId, groupId, grant }: { moduleId: string; groupId: string; grant: boolean }) => {
+    mutationFn: async ({ trainingId, groupId, grant }: { trainingId: string; groupId: string; grant: boolean }) => {
       if (grant) {
-        await supabase.from('module_groups').insert({ module_id: moduleId, group_id: groupId })
+        await supabase.from('training_groups').insert({ training_id: trainingId, group_id: groupId })
       } else {
-        await supabase.from('module_groups').delete().eq('module_id', moduleId).eq('group_id', groupId)
+        await supabase.from('training_groups').delete().eq('training_id', trainingId).eq('group_id', groupId)
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gestor-module-groups'] })
+      queryClient.invalidateQueries({ queryKey: ['gestor-training-groups'] })
     },
   })
 
-  function hasAccess(moduleId: string, groupId: string) {
-    return moduleGroups.some(mg => mg.module_id === moduleId && mg.group_id === groupId)
+  function hasAccess(trainingId: string, groupId: string) {
+    return trainingGroups.some((tg: any) => tg.training_id === trainingId && tg.group_id === groupId)
   }
 
   return (
@@ -53,12 +53,12 @@ export function AccessPage() {
           <Shield className="w-7 h-7 text-red-veon" />
           Liberações
         </h1>
-        <p className="text-text-secondary mt-2">Defina quais turmas têm acesso a cada módulo.</p>
+        <p className="text-text-secondary mt-2">Defina quais turmas têm acesso a cada treinamento.</p>
       </div>
 
-      {modules.length === 0 || groups.length === 0 ? (
+      {trainings.length === 0 || groups.length === 0 ? (
         <div className="text-center py-20 text-text-muted">
-          <p>Crie módulos e turmas primeiro para configurar as liberações.</p>
+          <p>Crie treinamentos e turmas primeiro para configurar as liberações.</p>
         </div>
       ) : (
         <div className="bg-bg-card border border-navy-800 rounded-xl overflow-hidden">
@@ -66,8 +66,8 @@ export function AccessPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-navy-800">
-                  <th className="text-left p-4 text-sm text-text-secondary font-medium">Módulo</th>
-                  {groups.map((g) => (
+                  <th className="text-left p-4 text-sm text-text-secondary font-medium">Treinamento</th>
+                  {groups.map((g: any) => (
                     <th key={g.id} className="text-center p-4 text-sm text-text-secondary font-medium min-w-[120px]">
                       {g.name}
                     </th>
@@ -75,15 +75,15 @@ export function AccessPage() {
                 </tr>
               </thead>
               <tbody>
-                {modules.map((mod) => (
-                  <tr key={mod.id} className="border-b border-navy-800/50 hover:bg-bg-card-hover">
-                    <td className="p-4 text-sm font-medium text-text-primary">{mod.title}</td>
-                    {groups.map((g) => {
-                      const granted = hasAccess(mod.id, g.id)
+                {trainings.map((t: any) => (
+                  <tr key={t.id} className="border-b border-navy-800/50 hover:bg-bg-card-hover">
+                    <td className="p-4 text-sm font-medium text-text-primary">{t.title}</td>
+                    {groups.map((g: any) => {
+                      const granted = hasAccess(t.id, g.id)
                       return (
                         <td key={g.id} className="text-center p-4">
                           <button
-                            onClick={() => toggleAccess.mutate({ moduleId: mod.id, groupId: g.id, grant: !granted })}
+                            onClick={() => toggleAccess.mutate({ trainingId: t.id, groupId: g.id, grant: !granted })}
                             className={`w-10 h-6 rounded-full transition-colors ${
                               granted ? 'bg-green-600' : 'bg-navy-700'
                             } relative`}

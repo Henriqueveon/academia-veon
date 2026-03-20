@@ -4,8 +4,10 @@ import { AuthProvider } from './contexts/AuthContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { GestorGuard } from './components/layout/GestorGuard'
 import { LoginPage } from './pages/auth/LoginPage'
+import { TrainingListPage } from './pages/tripulante/TrainingListPage'
 import { TrainingPage } from './pages/tripulante/TrainingPage'
-import { ModulesPage } from './pages/gestor/ModulesPage'
+import { TrainingsPage } from './pages/gestor/TrainingsPage'
+import { TrainingDetailPage } from './pages/gestor/TrainingDetailPage'
 import { CrewPage } from './pages/gestor/CrewPage'
 import { GroupsPage } from './pages/gestor/GroupsPage'
 import { AccessPage } from './pages/gestor/AccessPage'
@@ -27,9 +29,11 @@ function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route element={<AppLayout />}>
-              <Route path="/treinamentos" element={<TrainingPage />} />
+              <Route path="/treinamentos" element={<TrainingListPage />} />
+              <Route path="/treinamentos/:id" element={<TrainingPage />} />
               <Route element={<GestorGuard />}>
-                <Route path="/gestor/modulos" element={<ModulesPage />} />
+                <Route path="/gestor/treinamentos" element={<TrainingsPage />} />
+                <Route path="/gestor/treinamentos/:id" element={<TrainingDetailPage />} />
                 <Route path="/gestor/tripulantes" element={<CrewPage />} />
                 <Route path="/gestor/turmas" element={<GroupsPage />} />
                 <Route path="/gestor/liberacoes" element={<AccessPage />} />

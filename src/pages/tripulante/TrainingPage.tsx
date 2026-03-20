@@ -1,12 +1,18 @@
 import { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Play, CheckCircle, ChevronLeft, ChevronRight, X } from 'lucide-react'
-import type { Module, Lesson } from '../../types/database'
+import { Play, CheckCircle, ChevronLeft, ChevronRight, X, ArrowLeft } from 'lucide-react'
 
-interface ModuleWithLessons extends Module {
-  lessons: (Lesson & { watched?: boolean })[]
+interface LessonWithProgress {
+  id: string
+  module_id: string
+  title: string
+  description: string | null
+  youtube_url: string
+  sort_order: number
+  watched?: boolean
 }
 
 function extractYoutubeId(url: string): string | null {
@@ -15,65 +21,55 @@ function extractYoutubeId(url: string): string | null {
 }
 
 export function TrainingPage() {
+  const { id: trainingId } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [selectedLesson, setSelectedLesson] = useState<(Lesson & { watched?: boolean }) | null>(null)
+  const [selectedLesson, setSelectedLesson] = useState<LessonWithProgress | null>(null)
+
+  const { data: training } = useQuery({
+    queryKey: ['training-info', trainingId],
+    queryFn: async () => {
+      const { data } = await supabase.from('trainings').select('*').eq('id', trainingId!).single()
+      return data
+    },
+    enabled: !!trainingId,
+  })
 
   const { data: modules = [], isLoading } = useQuery({
-    queryKey: ['training-modules', user?.id],
+    queryKey: ['training-modules', trainingId, user?.id],
     queryFn: async () => {
-      // Get user's groups
-      const { data: userGroups } = await supabase
-        .from('user_groups')
-        .select('group_id')
-        .eq('user_id', user!.id)
-
-      if (!userGroups?.length) return []
-
-      const groupIds = userGroups.map(ug => ug.group_id)
-
-      // Get modules accessible to user's groups
-      const { data: moduleGroups } = await supabase
-        .from('module_groups')
-        .select('module_id')
-        .in('group_id', groupIds)
-
-      if (!moduleGroups?.length) return []
-
-      const moduleIds = [...new Set(moduleGroups.map(mg => mg.module_id))]
-
-      // Get modules with lessons
       const { data: modulesData } = await supabase
         .from('modules')
         .select('*')
-        .in('id', moduleIds)
+        .eq('training_id', trainingId!)
         .order('sort_order')
 
       if (!modulesData?.length) return []
 
-      // Get all lessons for these modules
+      const moduleIds = modulesData.map(m => m.id)
+
       const { data: lessonsData } = await supabase
         .from('lessons')
         .select('*')
         .in('module_id', moduleIds)
         .order('sort_order')
 
-      // Get progress
       const { data: progressData } = await supabase
         .from('lesson_progress')
         .select('lesson_id, watched')
         .eq('user_id', user!.id)
 
-      const progressMap = new Map(progressData?.map(p => [p.lesson_id, p.watched]) || [])
+      const progressMap = new Map((progressData || []).map((p: any) => [p.lesson_id, p.watched]))
 
       return modulesData.map(mod => ({
         ...mod,
         lessons: (lessonsData || [])
-          .filter(l => l.module_id === mod.id)
-          .map(l => ({ ...l, watched: progressMap.get(l.id) || false }))
-      })) as ModuleWithLessons[]
+          .filter((l: any) => l.module_id === mod.id)
+          .map((l: any) => ({ ...l, watched: progressMap.get(l.id) || false }))
+      }))
     },
-    enabled: !!user,
+    enabled: !!user && !!trainingId,
   })
 
   const markWatched = useMutation({
@@ -100,16 +96,25 @@ export function TrainingPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-8">Treinamentos</h1>
+      <button
+        onClick={() => navigate('/treinamentos')}
+        className="flex items-center gap-2 text-text-muted hover:text-text-primary mb-6 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" /> Voltar aos treinamentos
+      </button>
+
+      <h1 className="text-2xl font-bold mb-2">{training?.title || 'Treinamento'}</h1>
+      {training?.description && (
+        <p className="text-text-secondary mb-8">{training.description}</p>
+      )}
 
       {modules.length === 0 ? (
         <div className="text-center py-20 text-text-muted">
-          <p className="text-lg">Nenhum treinamento disponível ainda.</p>
-          <p className="text-sm mt-2">Aguarde a liberação do seu gestor.</p>
+          <p className="text-lg">Nenhum módulo disponível neste treinamento.</p>
         </div>
       ) : (
         <div className="space-y-10">
-          {modules.map((mod) => (
+          {modules.map((mod: any) => (
             <ModuleRow
               key={mod.id}
               module={mod}
@@ -120,7 +125,6 @@ export function TrainingPage() {
         </div>
       )}
 
-      {/* Video modal */}
       {selectedLesson && (
         <VideoModal
           lesson={selectedLesson}
@@ -140,37 +144,30 @@ function ModuleRow({
   onSelectLesson,
   onMarkWatched,
 }: {
-  module: ModuleWithLessons
-  onSelectLesson: (lesson: Lesson & { watched?: boolean }) => void
+  module: any
+  onSelectLesson: (lesson: LessonWithProgress) => void
   onMarkWatched: (id: string) => void
 }) {
   const scrollContainer = (id: string, direction: 'left' | 'right') => {
     const el = document.getElementById(id)
-    if (el) {
-      const scrollAmount = 320
-      el.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' })
-    }
+    if (el) el.scrollBy({ left: direction === 'left' ? -320 : 320, behavior: 'smooth' })
   }
 
-  const completedCount = mod.lessons.filter(l => l.watched).length
-  const totalCount = mod.lessons.length
+  const completedCount = mod.lessons.filter((l: any) => l.watched).length
 
   return (
     <div>
       <div className="flex items-center gap-4 mb-4">
         <h2 className="text-xl font-semibold text-text-primary">{mod.title}</h2>
-        {totalCount > 0 && (
+        {mod.lessons.length > 0 && (
           <span className="text-xs text-text-muted bg-bg-card px-2 py-1 rounded">
-            {completedCount}/{totalCount} concluídas
+            {completedCount}/{mod.lessons.length} concluídas
           </span>
         )}
       </div>
-      {mod.description && (
-        <p className="text-sm text-text-secondary mb-4">{mod.description}</p>
-      )}
+      {mod.description && <p className="text-sm text-text-secondary mb-4">{mod.description}</p>}
 
       <div className="relative group">
-        {/* Scroll buttons */}
         <button
           onClick={() => scrollContainer(`module-${mod.id}`, 'left')}
           className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-bg-primary/80 hover:bg-bg-card p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -186,10 +183,10 @@ function ModuleRow({
 
         <div
           id={`module-${mod.id}`}
-          className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide"
+          className="flex gap-4 overflow-x-auto pb-4"
           style={{ scrollbarWidth: 'none' }}
         >
-          {mod.lessons.map((lesson) => (
+          {mod.lessons.map((lesson: any) => (
             <LessonCard
               key={lesson.id}
               lesson={lesson}
@@ -208,7 +205,7 @@ function LessonCard({
   onClick,
   onMarkWatched,
 }: {
-  lesson: Lesson & { watched?: boolean }
+  lesson: LessonWithProgress
   onClick: () => void
   onMarkWatched: () => void
 }) {
@@ -217,7 +214,6 @@ function LessonCard({
 
   return (
     <div className="flex-shrink-0 w-72 bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors group/card">
-      {/* Thumbnail */}
       <div className="relative cursor-pointer" onClick={onClick}>
         {thumbnail ? (
           <img src={thumbnail} alt={lesson.title} className="w-full h-40 object-cover" />
@@ -235,13 +231,9 @@ function LessonCard({
           </div>
         )}
       </div>
-
-      {/* Info */}
       <div className="p-4">
         <h3 className="text-sm font-medium text-text-primary line-clamp-2 mb-1">{lesson.title}</h3>
-        {lesson.description && (
-          <p className="text-xs text-text-muted line-clamp-2">{lesson.description}</p>
-        )}
+        {lesson.description && <p className="text-xs text-text-muted line-clamp-2">{lesson.description}</p>}
         {!lesson.watched && (
           <button
             onClick={(e) => { e.stopPropagation(); onMarkWatched() }}
@@ -260,7 +252,7 @@ function VideoModal({
   onClose,
   onMarkWatched,
 }: {
-  lesson: Lesson & { watched?: boolean }
+  lesson: LessonWithProgress
   onClose: () => void
   onMarkWatched: (id: string) => void
 }) {
@@ -293,9 +285,7 @@ function VideoModal({
         )}
 
         <div className="mt-4 flex items-center justify-between">
-          {lesson.description && (
-            <p className="text-sm text-text-secondary">{lesson.description}</p>
-          )}
+          {lesson.description && <p className="text-sm text-text-secondary">{lesson.description}</p>}
           {!lesson.watched && (
             <button
               onClick={() => onMarkWatched(lesson.id)}

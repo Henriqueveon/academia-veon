@@ -13,7 +13,7 @@ export function Sidebar() {
   ]
 
   const gestorLinks = [
-    { path: '/gestor/modulos', label: 'Módulos', icon: Layers },
+    { path: '/gestor/treinamentos', label: 'Treinamentos', icon: Layers },
     { path: '/gestor/tripulantes', label: 'Tripulantes', icon: Users },
     { path: '/gestor/turmas', label: 'Turmas', icon: Shield },
     { path: '/gestor/liberacoes', label: 'Liberações', icon: Settings },
