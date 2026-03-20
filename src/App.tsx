@@ -11,6 +11,7 @@ import { TrainingDetailPage } from './pages/gestor/TrainingDetailPage'
 import { CrewPage } from './pages/gestor/CrewPage'
 import { GroupsPage } from './pages/gestor/GroupsPage'
 import { AccessPage } from './pages/gestor/AccessPage'
+import { EngagementPage } from './pages/gestor/EngagementPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,6 +37,7 @@ function App() {
                 <Route path="/gestor/treinamentos/:id" element={<TrainingDetailPage />} />
                 <Route path="/gestor/tripulantes" element={<CrewPage />} />
                 <Route path="/gestor/turmas" element={<GroupsPage />} />
+                <Route path="/gestor/engajamento" element={<EngagementPage />} />
                 <Route path="/gestor/liberacoes" element={<AccessPage />} />
               </Route>
             </Route>

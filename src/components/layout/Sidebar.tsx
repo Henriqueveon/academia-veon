@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { GraduationCap, LogOut, Settings, Users, BookOpen, Layers, Shield } from 'lucide-react'
+import { GraduationCap, LogOut, Settings, Users, BookOpen, Layers, Shield, BarChart3 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 interface SidebarProps {
@@ -21,6 +21,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     { path: '/gestor/treinamentos', label: 'Treinamentos', icon: Layers },
     { path: '/gestor/tripulantes', label: 'Tripulantes', icon: Users },
     { path: '/gestor/turmas', label: 'Turmas', icon: Shield },
+    { path: '/gestor/engajamento', label: 'Engajamento', icon: BarChart3 },
     { path: '/gestor/liberacoes', label: 'Liberações', icon: Settings },
   ]
 

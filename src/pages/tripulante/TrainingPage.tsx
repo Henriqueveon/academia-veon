@@ -29,6 +29,11 @@ export function TrainingPage() {
   const queryClient = useQueryClient()
   const [selectedLesson, setSelectedLesson] = useState<LessonWithProgress | null>(null)
 
+  const logView = async (lessonId: string) => {
+    if (!user) return
+    await supabase.from('lesson_views').insert({ user_id: user.id, lesson_id: lessonId })
+  }
+
   const { data: training } = useQuery({
     queryKey: ['training-info', trainingId],
     queryFn: async () => {
@@ -121,7 +126,7 @@ export function TrainingPage() {
           <div className="mb-8 bg-bg-card border border-navy-800 rounded-xl p-5">
             <h3 className="text-sm font-medium text-text-muted mb-3">Continuar Assistindo</h3>
             <button
-              onClick={() => setSelectedLesson(nextLesson.lesson)}
+              onClick={() => { logView(nextLesson.lesson.id); setSelectedLesson(nextLesson.lesson) }}
               className="flex items-center gap-4 w-full text-left hover:bg-navy-800/50 rounded-lg p-2 -m-2 transition-colors"
             >
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-veon flex items-center justify-center">
@@ -151,7 +156,7 @@ export function TrainingPage() {
             <ModuleRow
               key={mod.id}
               module={mod}
-              onSelectLesson={setSelectedLesson}
+              onSelectLesson={(lesson) => { logView(lesson.id); setSelectedLesson(lesson) }}
               onMarkWatched={(id) => markWatched.mutate(id)}
             />
           ))}
