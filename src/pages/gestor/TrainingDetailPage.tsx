@@ -165,7 +165,6 @@ export function TrainingDetailPage() {
     })
     setVideoSource(lesson.bunny_video_id ? 'upload' : 'youtube')
     setEditingLesson(lesson)
-    setExpandedModule(null)
   }
 
   function scrollContainer(id: string, direction: 'left' | 'right') {
