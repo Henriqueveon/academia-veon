@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
-import { Plus, Pencil, Trash2, Users, UserPlus } from 'lucide-react'
+import { Plus, Pencil, Trash2, Users, UserPlus, Copy, Check } from 'lucide-react'
 
 export function GroupsPage() {
   const queryClient = useQueryClient()
@@ -9,6 +9,10 @@ export function GroupsPage() {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [managingGroup, setManagingGroup] = useState<string | null>(null)
+  const [creatingInGroup, setCreatingInGroup] = useState<string | null>(null)
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '' })
+  const [createdInfo, setCreatedInfo] = useState<{ email: string; password: string } | null>(null)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['gestor-groups'],
@@ -72,9 +76,42 @@ export function GroupsPage() {
     },
   })
 
+  // Create user directly into this group
+  const createUserMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+      const { data: newUserId, error } = await supabase.rpc('admin_create_user', {
+        user_email: newUser.email,
+        user_password: newUser.password,
+        user_name: newUser.name,
+        user_role: 'tripulante',
+      })
+      if (error) throw error
+
+      // Add to this group
+      if (newUserId) {
+        await supabase.from('user_groups').insert({ user_id: newUserId, group_id: groupId })
+      }
+
+      return { email: newUser.email, password: newUser.password }
+    },
+    onSuccess: (info) => {
+      setCreatedInfo(info)
+      queryClient.invalidateQueries({ queryKey: ['gestor-profiles'] })
+      queryClient.invalidateQueries({ queryKey: ['gestor-user-groups'] })
+      queryClient.invalidateQueries({ queryKey: ['gestor-users'] })
+      setNewUser({ name: '', email: '', password: '' })
+    },
+  })
+
+  function copyToClipboard(text: string, field: string) {
+    navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
+  }
+
   function getMembersOfGroup(groupId: string) {
-    const memberIds = userGroups.filter(ug => ug.group_id === groupId).map(ug => ug.user_id)
-    return profiles.filter(p => memberIds.includes(p.id))
+    const memberIds = userGroups.filter((ug: any) => ug.group_id === groupId).map((ug: any) => ug.user_id)
+    return profiles.filter((p: any) => memberIds.includes(p.id))
   }
 
   return (
@@ -121,9 +158,10 @@ export function GroupsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {groups.map((g) => {
+          {groups.map((g: any) => {
             const members = getMembersOfGroup(g.id)
             const isManaging = managingGroup === g.id
+            const isCreating = creatingInGroup === g.id
             return (
               <div key={g.id} className="bg-bg-card border border-navy-800 rounded-xl p-4">
                 <div className="flex items-center gap-4">
@@ -133,8 +171,9 @@ export function GroupsPage() {
                     <p className="text-xs text-text-muted">{members.length} membro(s)</p>
                   </div>
                   <button
-                    onClick={() => setManagingGroup(isManaging ? null : g.id)}
+                    onClick={() => { setManagingGroup(isManaging ? null : g.id); setCreatingInGroup(null); setCreatedInfo(null) }}
                     className={`p-2 transition-colors ${isManaging ? 'text-red-veon' : 'text-text-muted hover:text-text-primary'}`}
+                    title="Gerenciar membros"
                   >
                     <UserPlus className="w-4 h-4" />
                   </button>
@@ -152,10 +191,90 @@ export function GroupsPage() {
                 {/* Member management */}
                 {isManaging && (
                   <div className="mt-4 border-t border-navy-800 pt-4">
-                    <p className="text-sm text-text-secondary mb-3">Gerenciar membros:</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm text-text-secondary">Gerenciar membros:</p>
+                      <button
+                        onClick={() => { setCreatingInGroup(isCreating ? null : g.id); setCreatedInfo(null); setNewUser({ name: '', email: '', password: '' }) }}
+                        className="flex items-center gap-1.5 text-xs bg-red-veon hover:bg-red-veon-dark text-white px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Novo Tripulante
+                      </button>
+                    </div>
+
+                    {/* Create user inline */}
+                    {isCreating && !createdInfo && (
+                      <div className="bg-bg-secondary border border-navy-700 rounded-lg p-4 mb-4">
+                        <p className="text-sm font-medium text-text-primary mb-3">Criar tripulante na turma "{g.name}"</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          <input
+                            value={newUser.name}
+                            onChange={(e) => setNewUser(f => ({ ...f, name: e.target.value }))}
+                            className="bg-bg-input border border-navy-700 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-red-veon"
+                            placeholder="Nome"
+                          />
+                          <input
+                            type="email"
+                            value={newUser.email}
+                            onChange={(e) => setNewUser(f => ({ ...f, email: e.target.value }))}
+                            className="bg-bg-input border border-navy-700 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-red-veon"
+                            placeholder="Email"
+                          />
+                          <input
+                            type="text"
+                            value={newUser.password}
+                            onChange={(e) => setNewUser(f => ({ ...f, password: e.target.value }))}
+                            className="bg-bg-input border border-navy-700 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-red-veon"
+                            placeholder="Senha"
+                          />
+                        </div>
+                        {createUserMutation.isError && (
+                          <p className="text-red-veon text-xs mt-2">{(createUserMutation.error as Error).message}</p>
+                        )}
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => createUserMutation.mutate(g.id)}
+                            disabled={!newUser.name || !newUser.email || !newUser.password || createUserMutation.isPending}
+                            className="bg-red-veon hover:bg-red-veon-dark text-white text-xs px-4 py-2 rounded-lg disabled:opacity-50"
+                          >
+                            {createUserMutation.isPending ? 'Criando...' : 'Criar e adicionar à turma'}
+                          </button>
+                          <button onClick={() => setCreatingInGroup(null)} className="text-xs text-text-muted hover:text-text-primary px-3 py-2">
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Created confirmation */}
+                    {createdInfo && isCreating && (
+                      <div className="bg-green-900/20 border border-green-800 rounded-lg p-4 mb-4">
+                        <p className="text-green-400 text-sm font-semibold mb-2">Tripulante criado e adicionado à turma!</p>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-text-muted w-12">Email:</span>
+                            <code className="bg-bg-input px-2 py-0.5 rounded text-xs flex-1">{createdInfo.email}</code>
+                            <button onClick={() => copyToClipboard(createdInfo.email, 'g-email')} className="text-text-muted hover:text-text-primary">
+                              {copiedField === 'g-email' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-text-muted w-12">Senha:</span>
+                            <code className="bg-bg-input px-2 py-0.5 rounded text-xs flex-1">{createdInfo.password}</code>
+                            <button onClick={() => copyToClipboard(createdInfo.password, 'g-pass')} className="text-text-muted hover:text-text-primary">
+                              {copiedField === 'g-pass' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+                        <button onClick={() => { setCreatedInfo(null); setCreatingInGroup(null) }} className="text-xs text-text-muted hover:text-text-primary mt-3">
+                          Fechar
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Existing members */}
                     <div className="space-y-2">
-                      {profiles.map((p) => {
-                        const isMember = userGroups.some(ug => ug.user_id === p.id && ug.group_id === g.id)
+                      {profiles.map((p: any) => {
+                        const isMember = userGroups.some((ug: any) => ug.user_id === p.id && ug.group_id === g.id)
                         return (
                           <label key={p.id} className="flex items-center gap-3 cursor-pointer hover:bg-bg-card-hover p-2 rounded-lg">
                             <input
