@@ -110,6 +110,37 @@ export function TrainingPage() {
         <p className="text-text-secondary mb-8">{training.description}</p>
       )}
 
+      {modules.length > 0 && (() => {
+        const nextLesson = modules.reduce<{ lesson: LessonWithProgress; moduleName: string } | null>((found, mod: any) => {
+          if (found) return found
+          const unwatched = mod.lessons.find((l: LessonWithProgress) => !l.watched)
+          return unwatched ? { lesson: unwatched, moduleName: mod.title } : null
+        }, null)
+
+        return nextLesson ? (
+          <div className="mb-8 bg-bg-card border border-navy-800 rounded-xl p-5">
+            <h3 className="text-sm font-medium text-text-muted mb-3">Continuar Assistindo</h3>
+            <button
+              onClick={() => setSelectedLesson(nextLesson.lesson)}
+              className="flex items-center gap-4 w-full text-left hover:bg-navy-800/50 rounded-lg p-2 -m-2 transition-colors"
+            >
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-veon flex items-center justify-center">
+                <Play className="w-5 h-5 text-white" fill="white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-text-primary font-medium truncate">{nextLesson.lesson.title}</p>
+                <p className="text-xs text-text-muted">{nextLesson.moduleName}</p>
+              </div>
+            </button>
+          </div>
+        ) : (
+          <div className="mb-8 bg-bg-card border border-green-500/30 rounded-xl p-5 text-center">
+            <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
+            <p className="text-text-primary font-medium">Parabéns! Você completou este treinamento.</p>
+          </div>
+        )
+      })()}
+
       {modules.length === 0 ? (
         <div className="text-center py-20 text-text-muted">
           <p className="text-lg">Nenhum módulo disponível neste treinamento.</p>
@@ -159,12 +190,22 @@ function ModuleRow({
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-4">
-        <h2 className="text-xl font-semibold text-text-primary">{mod.title}</h2>
+      <div className="mb-4">
+        <div className="flex items-center gap-4 mb-2">
+          <h2 className="text-xl font-semibold text-text-primary">{mod.title}</h2>
+          {mod.lessons.length > 0 && (
+            <span className="text-xs text-text-muted">
+              {Math.round((completedCount / mod.lessons.length) * 100)}% ({completedCount}/{mod.lessons.length} concluídas)
+            </span>
+          )}
+        </div>
         {mod.lessons.length > 0 && (
-          <span className="text-xs text-text-muted bg-bg-card px-2 py-1 rounded">
-            {completedCount}/{mod.lessons.length} concluídas
-          </span>
+          <div className="w-full bg-navy-900 rounded-full h-2 max-w-md">
+            <div
+              className="bg-green-500 h-2 rounded-full transition-all"
+              style={{ width: `${Math.round((completedCount / mod.lessons.length) * 100)}%` }}
+            />
+          </div>
         )}
       </div>
       {mod.description && <p className="text-sm text-text-secondary mb-4">{mod.description}</p>}

@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { BookOpen, ChevronRight } from 'lucide-react'
 
 export function TrainingListPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const navigate = useNavigate()
 
   const { data: trainings = [], isLoading } = useQuery({
@@ -56,8 +56,36 @@ export function TrainingListPage() {
     )
   }
 
+  const progressValues = Object.values(progress as Record<string, { total: number; done: number }>)
+  const totalLessons = progressValues.reduce((sum, p) => sum + p.total, 0)
+  const totalDone = progressValues.reduce((sum, p) => sum + p.done, 0)
+  const totalPending = totalLessons - totalDone
+
   return (
     <div>
+      {profile && (
+        <div className="bg-bg-card border border-navy-800 rounded-xl p-6 mb-8">
+          <h2 className="text-xl font-bold text-text-primary mb-1">
+            Olá, {profile.name}!
+          </h2>
+          <p className="text-sm text-text-muted mb-4">Aqui está o resumo do seu progresso.</p>
+          <div className="flex gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500" />
+              <span className="text-sm text-text-secondary">
+                <span className="font-semibold text-text-primary">{totalDone}</span> aulas concluídas
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-navy-600" />
+              <span className="text-sm text-text-secondary">
+                <span className="font-semibold text-text-primary">{totalPending}</span> aulas pendentes
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold mb-8">Treinamentos</h1>
 
       {trainings.length === 0 ? (
