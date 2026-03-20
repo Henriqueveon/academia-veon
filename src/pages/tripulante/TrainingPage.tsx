@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -29,9 +29,14 @@ export function TrainingPage() {
   const queryClient = useQueryClient()
   const [selectedLesson, setSelectedLesson] = useState<LessonWithProgress | null>(null)
 
-  const logView = async (lessonId: string) => {
-    if (!user) return
-    await supabase.from('lesson_views').insert({ user_id: user.id, lesson_id: lessonId })
+  const logView = async (lessonId: string): Promise<string | null> => {
+    if (!user) return null
+    const { data } = await supabase
+      .from('lesson_views')
+      .insert({ user_id: user.id, lesson_id: lessonId })
+      .select('id')
+      .single()
+    return data?.id ?? null
   }
 
   const { data: training } = useQuery({
@@ -157,7 +162,6 @@ export function TrainingPage() {
               key={mod.id}
               module={mod}
               onSelectLesson={(lesson) => { logView(lesson.id); setSelectedLesson(lesson) }}
-              onMarkWatched={(id) => markWatched.mutate(id)}
             />
           ))}
         </div>
@@ -180,11 +184,9 @@ export function TrainingPage() {
 function ModuleRow({
   module: mod,
   onSelectLesson,
-  onMarkWatched,
 }: {
   module: any
   onSelectLesson: (lesson: LessonWithProgress) => void
-  onMarkWatched: (id: string) => void
 }) {
   const scrollContainer = (id: string, direction: 'left' | 'right') => {
     const el = document.getElementById(id)
@@ -239,7 +241,6 @@ function ModuleRow({
               key={lesson.id}
               lesson={lesson}
               onClick={() => onSelectLesson(lesson)}
-              onMarkWatched={() => onMarkWatched(lesson.id)}
             />
           ))}
         </div>
@@ -251,11 +252,9 @@ function ModuleRow({
 function LessonCard({
   lesson,
   onClick,
-  onMarkWatched,
 }: {
   lesson: LessonWithProgress
   onClick: () => void
-  onMarkWatched: () => void
 }) {
   const ytId = lesson.youtube_url ? extractYoutubeId(lesson.youtube_url) : null
   const bunnyId = lesson.bunny_video_id
@@ -285,18 +284,12 @@ function LessonCard({
       <div className="p-4">
         <h3 className="text-sm font-medium text-text-primary line-clamp-2 mb-1">{lesson.title}</h3>
         {lesson.description && <p className="text-xs text-text-muted line-clamp-2">{lesson.description}</p>}
-        {!lesson.watched && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onMarkWatched() }}
-            className="mt-3 text-xs text-text-muted hover:text-green-400 transition-colors flex items-center gap-1"
-          >
-            <CheckCircle className="w-4 h-4" /> Marcar como assistida
-          </button>
-        )}
       </div>
     </div>
   )
 }
+
+const AUTO_WATCH_SECONDS = 300 // 5 minutes
 
 function VideoModal({
   lesson,
@@ -307,15 +300,81 @@ function VideoModal({
   onClose: () => void
   onMarkWatched: (id: string) => void
 }) {
+  const { user } = useAuth()
   const ytId = lesson.youtube_url ? extractYoutubeId(lesson.youtube_url) : null
   const bunnyId = lesson.bunny_video_id
 
+  const [autoWatched, setAutoWatched] = useState(false)
+  const openTimeRef = useRef(Date.now())
+  const viewIdRef = useRef<string | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Log view on mount and get the view ID
+  useEffect(() => {
+    async function logOpen() {
+      if (!user) return
+      const { data } = await supabase
+        .from('lesson_views')
+        .insert({ user_id: user.id, lesson_id: lesson.id })
+        .select('id')
+        .single()
+      if (data) viewIdRef.current = data.id
+    }
+    logOpen()
+  }, [user, lesson.id])
+
+  // Auto-watch timer: check every 5 seconds
+  useEffect(() => {
+    if (lesson.watched) return
+
+    timerRef.current = setInterval(() => {
+      const elapsed = (Date.now() - openTimeRef.current) / 1000
+      if (elapsed >= AUTO_WATCH_SECONDS) {
+        onMarkWatched(lesson.id)
+        setAutoWatched(true)
+        if (timerRef.current) clearInterval(timerRef.current)
+      }
+    }, 5000)
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [lesson.watched, lesson.id, onMarkWatched])
+
+  // Fade out auto-watched notification after 3 seconds
+  useEffect(() => {
+    if (!autoWatched) return
+    const timeout = setTimeout(() => setAutoWatched(false), 3000)
+    return () => clearTimeout(timeout)
+  }, [autoWatched])
+
+  // Close handler: update duration on the view record
+  const handleClose = useCallback(async () => {
+    const elapsed = Math.round((Date.now() - openTimeRef.current) / 1000)
+    if (viewIdRef.current) {
+      await supabase
+        .from('lesson_views')
+        .update({ duration_seconds: elapsed })
+        .eq('id', viewIdRef.current)
+    }
+    onClose()
+  }, [onClose])
+
+  // ESC key handler
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handleClose])
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={handleClose}>
       <div className="w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-text-primary">{lesson.title}</h2>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary">
+          <button onClick={handleClose} className="text-text-muted hover:text-text-primary">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -339,17 +398,7 @@ function VideoModal({
         )}
 
         <div className="mt-4 space-y-3">
-          <div className="flex items-center justify-between">
-            {lesson.description && <p className="text-sm text-text-secondary">{lesson.description}</p>}
-            {!lesson.watched && (
-            <button
-              onClick={() => onMarkWatched(lesson.id)}
-              className="ml-auto flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-lg transition-colors"
-            >
-              <CheckCircle className="w-4 h-4" /> Marcar como assistida
-            </button>
-          )}
-          </div>
+          {lesson.description && <p className="text-sm text-text-secondary">{lesson.description}</p>}
           {(lesson as any).material_url && (
             <a
               href={(lesson as any).material_url}
@@ -362,6 +411,13 @@ function VideoModal({
             </a>
           )}
         </div>
+
+        {/* Auto-watched notification */}
+        {autoWatched && (
+          <div className="mt-3 flex items-center gap-2 bg-green-600/20 border border-green-500/30 text-green-400 text-sm px-4 py-2 rounded-lg animate-pulse">
+            <CheckCircle className="w-4 h-4" /> Aula marcada como assistida
+          </div>
+        )}
       </div>
     </div>
   )
