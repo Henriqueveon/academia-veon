@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { Plus, Pencil, Trash2, BookOpen, ChevronRight } from 'lucide-react'
+import { ImageUpload } from '../../components/ImageUpload'
 
 export function TrainingsPage() {
   const queryClient = useQueryClient()
@@ -142,12 +143,12 @@ export function TrainingsPage() {
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm text-text-secondary mb-1">URL da Thumbnail</label>
-              <input
+              <ImageUpload
                 value={form.thumbnail_url}
-                onChange={(e) => setForm(f => ({ ...f, thumbnail_url: e.target.value }))}
-                className="w-full bg-bg-input border border-navy-700 rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-red-veon"
-                placeholder="https://..."
+                onChange={(url) => setForm(f => ({ ...f, thumbnail_url: url }))}
+                folder="treinamentos"
+                label="Capa do Treinamento"
+                hint="1280 x 720 px (16:9)"
               />
             </div>
           </div>

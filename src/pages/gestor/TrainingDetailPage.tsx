@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Play, X, Maximize, Minimize, Gauge, ArrowLeft } from 'lucide-react'
+import { ImageUpload } from '../../components/ImageUpload'
 
 function extractYoutubeId(url: string): string | null {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?\s]+)/)
@@ -225,12 +226,12 @@ export function TrainingDetailPage() {
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm text-text-secondary mb-1">URL da Thumbnail</label>
-              <input
+              <ImageUpload
                 value={moduleForm.thumbnail_url}
-                onChange={(e) => setModuleForm(f => ({ ...f, thumbnail_url: e.target.value }))}
-                className="w-full bg-bg-input border border-navy-700 rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-red-veon"
-                placeholder="https://..."
+                onChange={(url) => setModuleForm(f => ({ ...f, thumbnail_url: url }))}
+                folder="modulos"
+                label="Capa do Módulo"
+                hint="1280 x 400 px (3.2:1)"
               />
             </div>
           </div>
