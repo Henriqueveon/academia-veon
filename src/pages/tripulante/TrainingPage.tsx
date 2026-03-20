@@ -213,7 +213,7 @@ function LessonCard({
   const thumbnail = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null
 
   return (
-    <div className="flex-shrink-0 w-72 bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors group/card">
+    <div className="flex-shrink-0 w-60 md:w-72 bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors group/card">
       <div className="relative cursor-pointer" onClick={onClick}>
         {thumbnail ? (
           <img src={thumbnail} alt={lesson.title} className="w-full h-40 object-cover" />

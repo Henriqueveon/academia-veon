@@ -196,7 +196,7 @@ export function TrainingDetailPage() {
       {showModuleForm && (
         <div className="bg-bg-card border border-navy-800 rounded-xl p-6 mb-8">
           <h2 className="text-lg font-semibold mb-4">{editingModule ? 'Editar Módulo' : 'Novo Módulo'}</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-text-secondary mb-1">Título *</label>
               <input
@@ -215,7 +215,7 @@ export function TrainingDetailPage() {
                 className="w-full bg-bg-input border border-navy-700 rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-red-veon"
               />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 md:col-span-2">
               <label className="block text-sm text-text-secondary mb-1">Descrição</label>
               <textarea
                 value={moduleForm.description}
@@ -225,7 +225,7 @@ export function TrainingDetailPage() {
                 placeholder="Descrição do módulo"
               />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 md:col-span-2">
               <ImageUpload
                 value={moduleForm.thumbnail_url}
                 onChange={(url) => setModuleForm(f => ({ ...f, thumbnail_url: url }))}
@@ -297,7 +297,7 @@ export function TrainingDetailPage() {
                 {isExpanded && (
                   <div className="bg-bg-card border border-navy-800 rounded-xl p-5 mb-4">
                     <h3 className="text-sm font-semibold mb-3">{editingLesson ? 'Editar Aula' : 'Nova Aula'}</h3>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs text-text-secondary mb-1">Título *</label>
                         <input
@@ -378,7 +378,7 @@ export function TrainingDetailPage() {
                         const thumbnail = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null
 
                         return (
-                          <div key={lesson.id} className="flex-shrink-0 w-72 bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors group/card">
+                          <div key={lesson.id} className="flex-shrink-0 w-60 md:w-72 bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors group/card">
                             <div className="relative cursor-pointer" onClick={() => { setSelectedLesson(lesson); setPlaybackSpeed(1) }}>
                               {thumbnail ? (
                                 <img src={thumbnail} alt={lesson.title} className="w-full h-40 object-cover" />

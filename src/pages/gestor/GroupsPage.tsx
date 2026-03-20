@@ -205,7 +205,7 @@ export function GroupsPage() {
                     {isCreating && !createdInfo && (
                       <div className="bg-bg-secondary border border-navy-700 rounded-lg p-4 mb-4">
                         <p className="text-sm font-medium text-text-primary mb-3">Criar tripulante na turma "{g.name}"</p>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <input
                             value={newUser.name}
                             onChange={(e) => setNewUser(f => ({ ...f, name: e.target.value }))}

@@ -113,7 +113,7 @@ export function TrainingsPage() {
       {showForm && (
         <div className="bg-bg-card border border-navy-800 rounded-xl p-6 mb-8">
           <h2 className="text-lg font-semibold mb-4">{editing ? 'Editar Treinamento' : 'Novo Treinamento'}</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-text-secondary mb-1">Título *</label>
               <input
@@ -132,7 +132,7 @@ export function TrainingsPage() {
                 className="w-full bg-bg-input border border-navy-700 rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-red-veon"
               />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 md:col-span-2">
               <label className="block text-sm text-text-secondary mb-1">Descrição</label>
               <textarea
                 value={form.description}
@@ -142,7 +142,7 @@ export function TrainingsPage() {
                 placeholder="Descrição do treinamento"
               />
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 md:col-span-2">
               <ImageUpload
                 value={form.thumbnail_url}
                 onChange={(url) => setForm(f => ({ ...f, thumbnail_url: url }))}
