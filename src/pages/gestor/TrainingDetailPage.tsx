@@ -21,7 +21,7 @@ export function TrainingDetailPage() {
   const [moduleForm, setModuleForm] = useState({ title: '', description: '', thumbnail_url: '', sort_order: 0 })
   const [expandedModule, setExpandedModule] = useState<string | null>(null)
   const [editingLesson, setEditingLesson] = useState<any>(null)
-  const [lessonForm, setLessonForm] = useState({ title: '', description: '', youtube_url: '', bunny_video_id: '', sort_order: 0 })
+  const [lessonForm, setLessonForm] = useState({ title: '', description: '', youtube_url: '', bunny_video_id: '', material_url: '', material_name: '', sort_order: 0 })
   const [videoSource, setVideoSource] = useState<'upload' | 'youtube'>('upload')
   const [selectedLesson, setSelectedLesson] = useState<any>(null)
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
@@ -97,6 +97,8 @@ export function TrainingDetailPage() {
           description: lessonForm.description || null,
           youtube_url: lessonForm.youtube_url || null,
           bunny_video_id: lessonForm.bunny_video_id || null,
+          material_url: lessonForm.material_url || null,
+          material_name: lessonForm.material_name || null,
           sort_order: lessonForm.sort_order,
         }).eq('id', editingLesson.id)
       } else {
@@ -106,6 +108,8 @@ export function TrainingDetailPage() {
           description: lessonForm.description || null,
           youtube_url: lessonForm.youtube_url || null,
           bunny_video_id: lessonForm.bunny_video_id || null,
+          material_url: lessonForm.material_url || null,
+          material_name: lessonForm.material_name || null,
           sort_order: lessonForm.sort_order,
         })
       }
@@ -130,7 +134,7 @@ export function TrainingDetailPage() {
   }
 
   function resetLessonForm() {
-    setLessonForm({ title: '', description: '', youtube_url: '', bunny_video_id: '', sort_order: 0 })
+    setLessonForm({ title: '', description: '', youtube_url: '', bunny_video_id: '', material_url: '', material_name: '', sort_order: 0 })
     setEditingLesson(null)
     setEditingLesson(null)
   }
@@ -152,6 +156,8 @@ export function TrainingDetailPage() {
       description: lesson.description || '',
       youtube_url: lesson.youtube_url || '',
       bunny_video_id: lesson.bunny_video_id || '',
+      material_url: lesson.material_url || '',
+      material_name: lesson.material_name || '',
       sort_order: lesson.sort_order,
     })
     setVideoSource(lesson.bunny_video_id ? 'upload' : 'youtube')
@@ -364,6 +370,24 @@ export function TrainingDetailPage() {
                           onChange={(e) => setLessonForm(f => ({ ...f, sort_order: Number(e.target.value) }))}
                           className="w-full bg-bg-input border border-navy-700 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-red-veon"
                         />
+                      </div>
+                      <div className="col-span-1 md:col-span-2">
+                        <label className="block text-xs text-text-secondary mb-1">Material de Apoio (link ou PDF)</label>
+                        <div className="flex gap-2">
+                          <input
+                            value={lessonForm.material_name}
+                            onChange={(e) => setLessonForm(f => ({ ...f, material_name: e.target.value }))}
+                            className="w-1/3 bg-bg-input border border-navy-700 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-red-veon"
+                            placeholder="Nome do material (ex: Apostila)"
+                          />
+                          <input
+                            value={lessonForm.material_url}
+                            onChange={(e) => setLessonForm(f => ({ ...f, material_url: e.target.value }))}
+                            className="w-2/3 bg-bg-input border border-navy-700 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-red-veon"
+                            placeholder="URL do material (link ou PDF do Google Drive, etc)"
+                          />
+                        </div>
+                        <p className="text-xs text-text-muted mt-1">Cole um link do Google Drive, Dropbox ou qualquer URL pública</p>
                       </div>
                     </div>
                     <div className="flex gap-3 mt-3">
