@@ -124,7 +124,7 @@ export function EngagementPage() {
 
     const totalLessons = lessonIds.length
 
-    // Views per user (unique lesson count)
+    // Views per user (unique lesson count) — from lesson_views
     const viewsByUser = new Map<string, Set<string>>()
     const lastActivityByUser = new Map<string, string>()
     lessonViews.forEach((v: any) => {
@@ -134,11 +134,17 @@ export function EngagementPage() {
       if (!prev || v.viewed_at > prev) lastActivityByUser.set(v.user_id, v.viewed_at)
     })
 
-    // Completed per user (unique lesson count)
+    // Completed per user (unique lesson count) — also counts as "viewed"
     const completedByUser = new Map<string, Set<string>>()
     lessonProgress.forEach((p: any) => {
       if (!completedByUser.has(p.user_id)) completedByUser.set(p.user_id, new Set())
       completedByUser.get(p.user_id)!.add(p.lesson_id)
+      // Completed lessons also count as viewed
+      if (!viewsByUser.has(p.user_id)) viewsByUser.set(p.user_id, new Set())
+      viewsByUser.get(p.user_id)!.add(p.lesson_id)
+      // Use watched_at as last activity if no view exists or is more recent
+      const prev = lastActivityByUser.get(p.user_id)
+      if (p.watched_at && (!prev || p.watched_at > prev)) lastActivityByUser.set(p.user_id, p.watched_at)
     })
 
     return profiles.map((p: any) => {
@@ -161,8 +167,12 @@ export function EngagementPage() {
   }, [selectedTrainingId, lessonIds, lessonViews, lessonProgress, profiles, groupMap])
 
   const stats = useMemo(() => {
-    const totalViews = lessonViews.length
-    const activeUsers = new Set(lessonViews.map((v: any) => v.user_id)).size
+    const totalViews = lessonViews.length + lessonProgress.length
+    const allUserIds = new Set([
+      ...lessonViews.map((v: any) => v.user_id),
+      ...lessonProgress.map((p: any) => p.user_id),
+    ])
+    const activeUsers = allUserIds.size
     const avgCompletion = aggregated.length > 0
       ? Math.round(aggregated.reduce((sum: number, u: any) => sum + u.progress, 0) / aggregated.length)
       : 0
