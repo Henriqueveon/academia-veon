@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Play, X, Maximize, Minimize, Gauge, ArrowLeft } from 'lucide-react'
 import { ImageUpload } from '../../components/ImageUpload'
+import { VideoUpload } from '../../components/VideoUpload'
+import { VideoPlayer } from '../../components/VideoPlayer'
 
 function extractYoutubeId(url: string): string | null {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?\s]+)/)
@@ -19,7 +21,8 @@ export function TrainingDetailPage() {
   const [moduleForm, setModuleForm] = useState({ title: '', description: '', thumbnail_url: '', sort_order: 0 })
   const [expandedModule, setExpandedModule] = useState<string | null>(null)
   const [editingLesson, setEditingLesson] = useState<any>(null)
-  const [lessonForm, setLessonForm] = useState({ title: '', description: '', youtube_url: '', sort_order: 0 })
+  const [lessonForm, setLessonForm] = useState({ title: '', description: '', youtube_url: '', bunny_video_id: '', sort_order: 0 })
+  const [videoSource, setVideoSource] = useState<'upload' | 'youtube'>('upload')
   const [selectedLesson, setSelectedLesson] = useState<any>(null)
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
 
@@ -92,7 +95,8 @@ export function TrainingDetailPage() {
         await supabase.from('lessons').update({
           title: lessonForm.title,
           description: lessonForm.description || null,
-          youtube_url: lessonForm.youtube_url,
+          youtube_url: lessonForm.youtube_url || null,
+          bunny_video_id: lessonForm.bunny_video_id || null,
           sort_order: lessonForm.sort_order,
         }).eq('id', editingLesson.id)
       } else {
@@ -100,7 +104,8 @@ export function TrainingDetailPage() {
           module_id: moduleId,
           title: lessonForm.title,
           description: lessonForm.description || null,
-          youtube_url: lessonForm.youtube_url,
+          youtube_url: lessonForm.youtube_url || null,
+          bunny_video_id: lessonForm.bunny_video_id || null,
           sort_order: lessonForm.sort_order,
         })
       }
@@ -125,7 +130,7 @@ export function TrainingDetailPage() {
   }
 
   function resetLessonForm() {
-    setLessonForm({ title: '', description: '', youtube_url: '', sort_order: 0 })
+    setLessonForm({ title: '', description: '', youtube_url: '', bunny_video_id: '', sort_order: 0 })
     setEditingLesson(null)
     setEditingLesson(null)
   }
@@ -145,9 +150,11 @@ export function TrainingDetailPage() {
     setLessonForm({
       title: lesson.title,
       description: lesson.description || '',
-      youtube_url: lesson.youtube_url,
+      youtube_url: lesson.youtube_url || '',
+      bunny_video_id: lesson.bunny_video_id || '',
       sort_order: lesson.sort_order,
     })
+    setVideoSource(lesson.bunny_video_id ? 'upload' : 'youtube')
     setEditingLesson(lesson)
     setExpandedModule(null)
   }
@@ -307,14 +314,38 @@ export function TrainingDetailPage() {
                           placeholder="Título da aula"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs text-text-secondary mb-1">URL do YouTube *</label>
-                        <input
-                          value={lessonForm.youtube_url}
-                          onChange={(e) => setLessonForm(f => ({ ...f, youtube_url: e.target.value }))}
-                          className="w-full bg-bg-input border border-navy-700 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-red-veon"
-                          placeholder="https://youtube.com/watch?v=..."
-                        />
+                      <div className="col-span-1 md:col-span-2">
+                        <label className="block text-xs text-text-secondary mb-2">Vídeo *</label>
+                        <div className="flex gap-2 mb-3">
+                          <button
+                            type="button"
+                            onClick={() => setVideoSource('upload')}
+                            className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${videoSource === 'upload' ? 'bg-red-veon text-white' : 'bg-bg-input text-text-secondary hover:text-text-primary'}`}
+                          >
+                            Upload de Vídeo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setVideoSource('youtube')}
+                            className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${videoSource === 'youtube' ? 'bg-red-veon text-white' : 'bg-bg-input text-text-secondary hover:text-text-primary'}`}
+                          >
+                            URL do YouTube
+                          </button>
+                        </div>
+                        {videoSource === 'upload' ? (
+                          <VideoUpload
+                            currentVideoId={lessonForm.bunny_video_id || null}
+                            onUploadComplete={(videoId) => setLessonForm(f => ({ ...f, bunny_video_id: videoId, youtube_url: '' }))}
+                            onRemoveVideo={() => setLessonForm(f => ({ ...f, bunny_video_id: '' }))}
+                          />
+                        ) : (
+                          <input
+                            value={lessonForm.youtube_url}
+                            onChange={(e) => setLessonForm(f => ({ ...f, youtube_url: e.target.value, bunny_video_id: '' }))}
+                            className="w-full bg-bg-input border border-navy-700 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-red-veon"
+                            placeholder="https://youtube.com/watch?v=..."
+                          />
+                        )}
                       </div>
                       <div>
                         <label className="block text-xs text-text-secondary mb-1">Descrição</label>
@@ -338,7 +369,7 @@ export function TrainingDetailPage() {
                     <div className="flex gap-3 mt-3">
                       <button
                         onClick={() => saveLesson.mutate(mod.id)}
-                        disabled={!lessonForm.title || !lessonForm.youtube_url || saveLesson.isPending}
+                        disabled={!lessonForm.title || (!lessonForm.youtube_url && !lessonForm.bunny_video_id) || saveLesson.isPending}
                         className="bg-red-veon hover:bg-red-veon-dark text-white text-sm px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
                       >
                         {saveLesson.isPending ? 'Salvando...' : 'Salvar Aula'}
@@ -374,8 +405,13 @@ export function TrainingDetailPage() {
                       style={{ scrollbarWidth: 'none' }}
                     >
                       {modLessons.map((lesson: any) => {
-                        const videoId = extractYoutubeId(lesson.youtube_url)
-                        const thumbnail = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null
+                        const ytId = lesson.youtube_url ? extractYoutubeId(lesson.youtube_url) : null
+                        const bunnyId = lesson.bunny_video_id
+                        const thumbnail = ytId
+                          ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`
+                          : bunnyId
+                            ? `https://vz-6d04ab5b-6ae.b-cdn.net/${bunnyId}/thumbnail.jpg`
+                            : null
 
                         return (
                           <div key={lesson.id} className="flex-shrink-0 w-60 md:w-72 bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors group/card">
@@ -452,13 +488,15 @@ function VideoModal({
   onSpeedChange: (speed: number) => void
   onClose: () => void
 }) {
-  const videoId = extractYoutubeId(lesson.youtube_url)
+  const ytId = lesson.youtube_url ? extractYoutubeId(lesson.youtube_url) : null
+  const bunnyId = lesson.bunny_video_id
   const playerRef = useRef<any>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const speeds = [1, 1.25, 1.5]
+  const isBunny = !!bunnyId
 
   useEffect(() => {
-    if (!videoId) return
+    if (!ytId || isBunny) return
 
     if (!(window as any).YT) {
       const tag = document.createElement('script')
@@ -468,7 +506,7 @@ function VideoModal({
 
     function createPlayer() {
       playerRef.current = new (window as any).YT.Player('yt-player', {
-        videoId,
+        videoId: ytId,
         playerVars: { autoplay: 1, rel: 0, modestbranding: 1 },
         events: {
           onReady: (event: any) => {
@@ -487,13 +525,13 @@ function VideoModal({
     return () => {
       if (playerRef.current?.destroy) playerRef.current.destroy()
     }
-  }, [videoId])
+  }, [ytId, isBunny])
 
   useEffect(() => {
-    if (playerRef.current?.setPlaybackRate) {
+    if (!isBunny && playerRef.current?.setPlaybackRate) {
       playerRef.current.setPlaybackRate(playbackSpeed)
     }
-  }, [playbackSpeed])
+  }, [playbackSpeed, isBunny])
 
   // ESC to exit fullscreen
   useEffect(() => {
@@ -566,7 +604,11 @@ function VideoModal({
         </div>
 
         {/* Video */}
-        {videoId ? (
+        {isBunny ? (
+          <div className={`${isFullscreen ? 'flex-1' : 'w-full rounded-xl overflow-hidden'}`}>
+            <VideoPlayer videoId={bunnyId} autoplay />
+          </div>
+        ) : ytId ? (
           <div className={`relative bg-black ${isFullscreen ? 'flex-1' : 'w-full rounded-xl overflow-hidden'}`} style={isFullscreen ? {} : { paddingBottom: '56.25%' }}>
             <div id="yt-player" className={`${isFullscreen ? 'w-full h-full' : 'absolute inset-0 w-full h-full'}`} />
           </div>

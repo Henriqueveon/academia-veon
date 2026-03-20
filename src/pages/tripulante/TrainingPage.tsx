@@ -4,13 +4,15 @@ import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Play, CheckCircle, ChevronLeft, ChevronRight, X, ArrowLeft } from 'lucide-react'
+import { VideoPlayer } from '../../components/VideoPlayer'
 
 interface LessonWithProgress {
   id: string
   module_id: string
   title: string
   description: string | null
-  youtube_url: string
+  youtube_url: string | null
+  bunny_video_id: string | null
   sort_order: number
   watched?: boolean
 }
@@ -209,8 +211,13 @@ function LessonCard({
   onClick: () => void
   onMarkWatched: () => void
 }) {
-  const videoId = extractYoutubeId(lesson.youtube_url)
-  const thumbnail = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null
+  const ytId = lesson.youtube_url ? extractYoutubeId(lesson.youtube_url) : null
+  const bunnyId = lesson.bunny_video_id
+  const thumbnail = ytId
+    ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`
+    : bunnyId
+      ? `https://vz-6d04ab5b-6ae.b-cdn.net/${bunnyId}/thumbnail.jpg`
+      : null
 
   return (
     <div className="flex-shrink-0 w-60 md:w-72 bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors group/card">
@@ -256,7 +263,8 @@ function VideoModal({
   onClose: () => void
   onMarkWatched: (id: string) => void
 }) {
-  const videoId = extractYoutubeId(lesson.youtube_url)
+  const ytId = lesson.youtube_url ? extractYoutubeId(lesson.youtube_url) : null
+  const bunnyId = lesson.bunny_video_id
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={onClose}>
@@ -268,11 +276,13 @@ function VideoModal({
           </button>
         </div>
 
-        {videoId ? (
+        {bunnyId ? (
+          <VideoPlayer videoId={bunnyId} autoplay />
+        ) : ytId ? (
           <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
             <iframe
               className="absolute inset-0 w-full h-full rounded-xl"
-              src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+              src={`https://www.youtube.com/embed/${ytId}?autoplay=1`}
               title={lesson.title}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -280,7 +290,7 @@ function VideoModal({
           </div>
         ) : (
           <div className="bg-bg-card rounded-xl p-20 text-center text-text-muted">
-            URL do vídeo inválida
+            Vídeo não disponível
           </div>
         )}
 
