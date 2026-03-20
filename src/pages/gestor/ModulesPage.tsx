@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Play, X, Maximize, Minimize, Gauge } from 'lucide-react'
@@ -14,7 +14,6 @@ export function ModulesPage() {
   const [editingModule, setEditingModule] = useState<any>(null)
   const [moduleForm, setModuleForm] = useState({ title: '', description: '', thumbnail_url: '', sort_order: 0 })
   const [expandedModule, setExpandedModule] = useState<string | null>(null)
-  const [showLessonForm, setShowLessonForm] = useState(false)
   const [editingLesson, setEditingLesson] = useState<any>(null)
   const [lessonForm, setLessonForm] = useState({ title: '', description: '', youtube_url: '', sort_order: 0 })
   const [selectedLesson, setSelectedLesson] = useState<any>(null)
@@ -112,7 +111,7 @@ export function ModulesPage() {
   function resetLessonForm() {
     setLessonForm({ title: '', description: '', youtube_url: '', sort_order: 0 })
     setEditingLesson(null)
-    setShowLessonForm(false)
+    setEditingLesson(null)
   }
 
   function startEditModule(mod: any) {
@@ -134,7 +133,7 @@ export function ModulesPage() {
       sort_order: lesson.sort_order,
     })
     setEditingLesson(lesson)
-    setShowLessonForm(true)
+    setExpandedModule(null)
   }
 
   function scrollContainer(id: string, direction: 'left' | 'right') {
