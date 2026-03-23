@@ -6,7 +6,7 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ videoId, libraryId, autoplay = false }: VideoPlayerProps) {
   const libId = libraryId || import.meta.env.VITE_BUNNY_LIBRARY_ID || '621207'
-  const src = `https://iframe.mediadelivery.net/embed/${libId}/${videoId}?autoplay=${autoplay}&loop=false&muted=false&preload=true&responsive=true`
+  const src = `https://iframe.mediadelivery.net/embed/${libId}/${videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`
 
   return (
     <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
