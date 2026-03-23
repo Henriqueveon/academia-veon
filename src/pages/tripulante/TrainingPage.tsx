@@ -289,8 +289,6 @@ function LessonCard({
   )
 }
 
-const AUTO_WATCH_SECONDS = 300 // 5 minutes
-
 function VideoModal({
   lesson,
   onClose,
@@ -307,7 +305,6 @@ function VideoModal({
   const [autoWatched, setAutoWatched] = useState(false)
   const openTimeRef = useRef(Date.now())
   const viewIdRef = useRef<string | null>(null)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Log view on mount and get the view ID
   useEffect(() => {
@@ -323,23 +320,12 @@ function VideoModal({
     logOpen()
   }, [user, lesson.id])
 
-  // Auto-watch timer: check every 5 seconds
-  useEffect(() => {
-    if (lesson.watched) return
-
-    timerRef.current = setInterval(() => {
-      const elapsed = (Date.now() - openTimeRef.current) / 1000
-      if (elapsed >= AUTO_WATCH_SECONDS) {
-        onMarkWatched(lesson.id)
-        setAutoWatched(true)
-        if (timerRef.current) clearInterval(timerRef.current)
-      }
-    }, 5000)
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [lesson.watched, lesson.id, onMarkWatched])
+  // Called when video reaches 90%+ or ends
+  const handleVideoComplete = useCallback(() => {
+    if (lesson.watched || autoWatched) return
+    onMarkWatched(lesson.id)
+    setAutoWatched(true)
+  }, [lesson.watched, lesson.id, onMarkWatched, autoWatched])
 
   // Fade out auto-watched notification after 3 seconds
   useEffect(() => {
@@ -380,7 +366,7 @@ function VideoModal({
         </div>
 
         {bunnyId ? (
-          <VideoPlayer videoId={bunnyId} autoplay />
+          <VideoPlayer videoId={bunnyId} autoplay onVideoComplete={handleVideoComplete} />
         ) : ytId ? (
           <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
             <iframe
