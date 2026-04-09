@@ -7,7 +7,7 @@ interface VideoPlayerProps {
   onVideoComplete?: () => void
 }
 
-export function VideoPlayer({ videoId, libraryId, autoplay = false, onVideoComplete }: VideoPlayerProps) {
+export function VideoPlayer({ videoId, libraryId, autoplay: _autoplay = false, onVideoComplete }: VideoPlayerProps) {
   const libId = libraryId || import.meta.env.VITE_BUNNY_LIBRARY_ID || '621207'
   const src = `https://iframe.mediadelivery.net/embed/${libId}/${videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`
   const completedRef = useRef(false)
@@ -25,14 +25,14 @@ export function VideoPlayer({ videoId, libraryId, autoplay = false, onVideoCompl
           if (msg.event === 'videoProgress' && typeof msg.data === 'number') {
             if (msg.data >= 0.9 && !completedRef.current) {
               completedRef.current = true
-              onVideoComplete()
+              onVideoComplete?.()
             }
           }
           // Also handle video ended event
           if (msg.event === 'ended' || msg.event === 'videoEnded') {
             if (!completedRef.current) {
               completedRef.current = true
-              onVideoComplete()
+              onVideoComplete?.()
             }
           }
         } catch {
@@ -45,13 +45,13 @@ export function VideoPlayer({ videoId, libraryId, autoplay = false, onVideoCompl
         if (msg.event === 'videoProgress' && typeof msg.data === 'number') {
           if (msg.data >= 0.9 && !completedRef.current) {
             completedRef.current = true
-            onVideoComplete()
+            onVideoComplete?.()
           }
         }
         if (msg.event === 'ended' || msg.event === 'videoEnded') {
           if (!completedRef.current) {
             completedRef.current = true
-            onVideoComplete()
+            onVideoComplete?.()
           }
         }
       }
