@@ -145,6 +145,16 @@ export interface Database {
   }
 }
 
+export interface RegistrationLink {
+  id: string
+  slug: string
+  group_id: string
+  description: string | null
+  active: boolean
+  created_by: string | null
+  created_at: string
+}
+
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type Group = Database['public']['Tables']['groups']['Row']
 export type Module = Database['public']['Tables']['modules']['Row']

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { GraduationCap, LogOut, Settings, Users, BookOpen, Layers, Shield, BarChart3 } from 'lucide-react'
+import { GraduationCap, LogOut, Settings, Users, BookOpen, Layers, Shield, BarChart3, Link2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 interface SidebarProps {
@@ -23,6 +23,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     { path: '/gestor/turmas', label: 'Turmas', icon: Shield },
     { path: '/gestor/engajamento', label: 'Engajamento', icon: BarChart3 },
     { path: '/gestor/liberacoes', label: 'Liberações', icon: Settings },
+    { path: '/gestor/links-cadastro', label: 'Links de Cadastro', icon: Link2 },
   ]
 
   const links = isGestor ? gestorLinks : tripulanteLinks

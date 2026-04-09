@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
-import { Plus, Trash2, Copy, Check, Pencil, X, Mail, Lock, User, Calendar, Shield, Layers } from 'lucide-react'
+import { Plus, Trash2, Copy, Check, Pencil, X, Mail, Lock, User, Calendar, Shield, Layers, Phone, CreditCard } from 'lucide-react'
 
 interface UserProfile {
   id: string
   email: string
   name: string
   role: string
+  cpf: string | null
+  whatsapp: string | null
   created_at: string
 }
 
@@ -384,7 +386,7 @@ export function CrewPage() {
           </div>
 
           {/* Basic info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="flex items-center gap-1.5 text-sm text-text-secondary mb-1">
                 <User className="w-3.5 h-3.5" /> Nome
@@ -407,6 +409,30 @@ export function CrewPage() {
                 <option value="tripulante">Tripulante</option>
                 <option value="gestor">Gestor</option>
               </select>
+            </div>
+          </div>
+
+          {/* CPF e WhatsApp (somente leitura) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="flex items-center gap-1.5 text-sm text-text-secondary mb-1">
+                <CreditCard className="w-3.5 h-3.5" /> CPF
+              </label>
+              <div className="w-full bg-bg-input border border-navy-700 rounded-lg px-4 py-2.5 text-text-muted text-sm">
+                {editingUser.cpf
+                  ? editingUser.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+                  : '—'}
+              </div>
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-sm text-text-secondary mb-1">
+                <Phone className="w-3.5 h-3.5" /> WhatsApp
+              </label>
+              <div className="w-full bg-bg-input border border-navy-700 rounded-lg px-4 py-2.5 text-text-muted text-sm">
+                {editingUser.whatsapp
+                  ? editingUser.whatsapp.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+                  : '—'}
+              </div>
             </div>
           </div>
           <button
@@ -610,10 +636,20 @@ export function CrewPage() {
                     {u.role}
                   </span>
                 </div>
-                <div className="flex items-center gap-4 mt-1">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                   <span className="text-xs text-text-muted flex items-center gap-1">
                     <Mail className="w-3 h-3" /> {u.email}
                   </span>
+                  {u.cpf && (
+                    <span className="text-xs text-text-muted flex items-center gap-1">
+                      <CreditCard className="w-3 h-3" /> {u.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}
+                    </span>
+                  )}
+                  {u.whatsapp && (
+                    <span className="text-xs text-text-muted flex items-center gap-1">
+                      <Phone className="w-3 h-3" /> {u.whatsapp.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')}
+                    </span>
+                  )}
                   <span className="text-xs text-text-muted flex items-center gap-1">
                     <Calendar className="w-3 h-3" /> {formatDate(u.created_at)}
                   </span>

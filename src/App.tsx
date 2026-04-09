@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { GestorGuard } from './components/layout/GestorGuard'
 import { LoginPage } from './pages/auth/LoginPage'
+import { RegisterPage } from './pages/public/RegisterPage'
 import { TrainingListPage } from './pages/tripulante/TrainingListPage'
 import { TrainingPage } from './pages/tripulante/TrainingPage'
 import { TrainingsPage } from './pages/gestor/TrainingsPage'
@@ -12,6 +13,7 @@ import { CrewPage } from './pages/gestor/CrewPage'
 import { GroupsPage } from './pages/gestor/GroupsPage'
 import { AccessPage } from './pages/gestor/AccessPage'
 import { EngagementPage } from './pages/gestor/EngagementPage'
+import { RegistrationLinksPage } from './pages/gestor/RegistrationLinksPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,6 +31,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/cadastro/:slug" element={<RegisterPage />} />
             <Route element={<AppLayout />}>
               <Route path="/treinamentos" element={<TrainingListPage />} />
               <Route path="/treinamentos/:id" element={<TrainingPage />} />
@@ -39,6 +42,7 @@ function App() {
                 <Route path="/gestor/turmas" element={<GroupsPage />} />
                 <Route path="/gestor/engajamento" element={<EngagementPage />} />
                 <Route path="/gestor/liberacoes" element={<AccessPage />} />
+                <Route path="/gestor/links-cadastro" element={<RegistrationLinksPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/treinamentos" replace />} />
