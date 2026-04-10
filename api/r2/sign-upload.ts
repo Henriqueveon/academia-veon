@@ -15,6 +15,9 @@ const s3 = new S3Client({
     accessKeyId: R2_ACCESS_KEY_ID,
     secretAccessKey: R2_SECRET_ACCESS_KEY,
   },
+  // Disable AWS SDK auto-checksums (CRC32) — R2 doesn't fully support them
+  requestChecksumCalculation: 'WHEN_REQUIRED',
+  responseChecksumValidation: 'WHEN_REQUIRED',
 })
 
 const ALLOWED_FOLDERS = ['posts', 'avatars', 'covers']
