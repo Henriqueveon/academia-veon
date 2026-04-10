@@ -3,9 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Bell, User, Heart, MessageCircle, UserPlus, Share2, FileText, BookOpen } from 'lucide-react'
+import { Bell, User, Heart, MessageCircle, UserPlus, Share2, FileText, BookOpen, Sparkles, Wallet } from 'lucide-react'
 
-const NOTIF_LABELS: Record<string, { icon: any; color: string; text: (actor: string) => string }> = {
+interface NotifConfig {
+  icon: any
+  color: string
+  text: (actor: string, extra?: string) => string
+}
+
+const NOTIF_LABELS: Record<string, NotifConfig> = {
   share_received: { icon: Share2, color: 'text-blue-400', text: (a) => `${a} compartilhou um post com você` },
   new_follower: { icon: UserPlus, color: 'text-purple-400', text: (a) => `${a} começou a te seguir` },
   post_like: { icon: Heart, color: 'text-red-veon', text: (a) => `${a} curtiu seu post` },
@@ -14,6 +20,14 @@ const NOTIF_LABELS: Record<string, { icon: any; color: string; text: (actor: str
   new_post_feed: { icon: FileText, color: 'text-cyan-400', text: () => 'Novo post no feed' },
   followed_user_post: { icon: FileText, color: 'text-cyan-400', text: (a) => `${a} publicou um novo post` },
   new_lesson: { icon: BookOpen, color: 'text-yellow-400', text: () => 'Nova aula disponível!' },
+  lead_interest: {
+    icon: Sparkles,
+    color: 'text-yellow-400',
+    text: (a, course) => course
+      ? `${a} tem interesse no curso "${course}"`
+      : `${a} demonstrou interesse em um curso`,
+  },
+  credit_received: { icon: Wallet, color: 'text-green-400', text: (_, amount) => `Você recebeu ${amount || 'créditos'}` },
 }
 
 export function NotificationsBell() {
@@ -36,6 +50,8 @@ export function NotificationsBell() {
       if (!data) return []
 
       const actorIds = [...new Set(data.map((n: any) => n.actor_id).filter(Boolean))]
+      const trainingIds = [...new Set(data.map((n: any) => n.training_id).filter(Boolean))]
+
       let actorsMap = new Map()
       if (actorIds.length > 0) {
         const { data: actors } = await supabase
@@ -45,10 +61,23 @@ export function NotificationsBell() {
         actorsMap = new Map((actors || []).map((a: any) => [a.id, a]))
       }
 
-      return data.map((n: any) => ({ ...n, actor: n.actor_id ? actorsMap.get(n.actor_id) : null }))
+      let trainingsMap = new Map()
+      if (trainingIds.length > 0) {
+        const { data: trns } = await supabase
+          .from('trainings')
+          .select('id, title')
+          .in('id', trainingIds)
+        trainingsMap = new Map((trns || []).map((t: any) => [t.id, t]))
+      }
+
+      return data.map((n: any) => ({
+        ...n,
+        actor: n.actor_id ? actorsMap.get(n.actor_id) : null,
+        training: n.training_id ? trainingsMap.get(n.training_id) : null,
+      }))
     },
     enabled: !!user,
-    refetchInterval: 60000, // check every minute
+    refetchInterval: 60000,
   })
 
   const unreadCount = notifications.filter((n: any) => !n.read).length
@@ -83,8 +112,10 @@ export function NotificationsBell() {
     setOpen(false)
 
     // Route based on type
-    if (n.type === 'new_lesson' && n.lesson_id) {
-      // Navigate to training that contains the lesson
+    if (n.type === 'lead_interest' && n.actor_id) {
+      // Gestor: abre perfil do aluno interessado
+      navigate(`/perfil/${n.actor_id}`)
+    } else if (n.type === 'new_lesson' && n.lesson_id) {
       ;(async () => {
         const { data: lesson } = await supabase.from('lessons').select('module_id').eq('id', n.lesson_id).single()
         if (lesson) {
@@ -92,6 +123,8 @@ export function NotificationsBell() {
           if (module) navigate(`/treinamentos/${module.training_id}?aula=${n.lesson_id}`)
         }
       })()
+    } else if (n.type === 'credit_received') {
+      navigate('/creditos')
     } else if (n.post_id) {
       navigate(`/p/${n.post_id}`)
     } else if (n.type === 'new_follower' && n.actor_id) {
@@ -150,6 +183,7 @@ export function NotificationsBell() {
                 const config = NOTIF_LABELS[n.type] || NOTIF_LABELS.new_post_feed
                 const Icon = config.icon
                 const actorName = n.actor?.name || 'Alguém'
+                const extra = n.training?.title || undefined
 
                 return (
                   <button
@@ -175,7 +209,7 @@ export function NotificationsBell() {
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-text-primary">{config.text(actorName)}</p>
+                      <p className="text-sm text-text-primary">{config.text(actorName, extra)}</p>
                       <p className="text-xs text-text-muted mt-0.5">{formatTime(n.created_at)}</p>
                     </div>
 
