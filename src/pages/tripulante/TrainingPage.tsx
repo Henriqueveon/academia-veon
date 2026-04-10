@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Play, CheckCircle, ChevronLeft, ChevronRight, X, ArrowLeft, Link2, Check, SkipBack, SkipForward } from 'lucide-react'
+import { Play, CheckCircle, ChevronLeft, ChevronRight, X, ArrowLeft, SkipBack, SkipForward } from 'lucide-react'
 import { VideoPlayer } from '../../components/VideoPlayer'
 
 interface LessonWithProgress {
@@ -357,27 +357,6 @@ function LessonCard({
   )
 }
 
-function CopyLessonLink({ trainingId, lessonId }: { trainingId: string; lessonId: string }) {
-  const [copied, setCopied] = useState(false)
-
-  function handleCopy(e: React.MouseEvent) {
-    e.stopPropagation()
-    const url = `${window.location.origin}/treinamentos/${trainingId}?aula=${lessonId}`
-    navigator.clipboard.writeText(url)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="p-1 text-text-muted hover:text-text-primary transition-colors"
-      title="Copiar link da aula"
-    >
-      {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Link2 className="w-3.5 h-3.5" />}
-    </button>
-  )
-}
 
 function VideoModal({
   lesson,

@@ -265,7 +265,6 @@ export function RegistrationLinksPage() {
       ) : (
         <div className="space-y-4">
           {links.map((link: any) => {
-            const groupTrainings = link.group_id ? getTrainingsForGroup(link.group_id) : []
             const directTrainings = (link.training_ids || [])
               .map((tid: string) => trainings.find((t: any) => t.id === tid))
               .filter(Boolean)

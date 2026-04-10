@@ -46,14 +46,6 @@ export function CrewPage() {
     },
   })
 
-  const { data: modules = [] } = useQuery({
-    queryKey: ['gestor-modules'],
-    queryFn: async () => {
-      const { data } = await supabase.from('modules').select('*').order('sort_order')
-      return data || []
-    },
-  })
-
   const { data: groups = [] } = useQuery({
     queryKey: ['gestor-groups'],
     queryFn: async () => {
@@ -66,14 +58,6 @@ export function CrewPage() {
     queryKey: ['gestor-user-groups'],
     queryFn: async () => {
       const { data } = await supabase.from('user_groups').select('*')
-      return data || []
-    },
-  })
-
-  const { data: moduleGroups = [] } = useQuery({
-    queryKey: ['gestor-module-groups'],
-    queryFn: async () => {
-      const { data } = await supabase.from('module_groups').select('*')
       return data || []
     },
   })
@@ -225,12 +209,6 @@ export function CrewPage() {
     const gIds = getUserGroupIds(userId)
     trainingGroups.filter((tg: any) => gIds.includes(tg.group_id)).forEach((tg: any) => ids.add(tg.training_id))
     return ids
-  }
-
-  function getAccessibleModules(userId: string) {
-    const gIds = getUserGroupIds(userId)
-    const moduleIds = moduleGroups.filter((mg: any) => gIds.includes(mg.group_id)).map((mg: any) => mg.module_id)
-    return [...new Set(moduleIds)]
   }
 
   function formatDate(dateStr: string) {
