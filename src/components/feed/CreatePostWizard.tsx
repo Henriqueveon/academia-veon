@@ -63,39 +63,67 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
     return pages.every(p => !!p.file && !!p.previewUrl)
   }
 
-  // Optimistic submission
+  // Optimistic submission — closes modal instantly, post appears immediately
   async function submit() {
     if (!user || !canProceed()) return
 
-    // Close immediately, show optimistic post in feed
+    // Build optimistic post with local previews (URL.createObjectURL)
     const tempId = `temp-${Date.now()}`
+
+    // Try to fetch current user profile from cache for nicer optimistic display
+    const currentProfile = queryClient.getQueryData<any>(['profile', user.id])
+
     const optimisticPost = {
       id: tempId,
       user_id: user.id,
       caption: caption.trim() || null,
       created_at: new Date().toISOString(),
-      author: { name: 'Você', avatar_url: null, profession: null },
+      author: {
+        name: currentProfile?.name || 'Você',
+        avatar_url: currentProfile?.avatar_url || null,
+        profession: currentProfile?.profession || null,
+      },
       pages: pages.map((p, i) => ({
         id: `${tempId}-${i}`,
+        post_id: tempId,
         type: p.type,
-        image_url: p.previewUrl,
+        image_url: p.previewUrl, // local blob URL — shows instantly
         sort_order: i,
-        duration_seconds: p.duration,
+        duration_seconds: p.duration || null,
       })),
       likes: [],
       likedByMe: false,
       likesCount: 0,
       comments: [],
       commentsCount: 0,
+      sharesCount: 0,
       _uploading: true,
     }
 
-    // Add to feed instantly
-    queryClient.setQueryData(['feed-posts'], (old: any) => [optimisticPost, ...(old || [])])
+    const feedKey = ['feed-posts', user.id]
+
+    // Insert optimistic post into infinite query cache (page 0)
+    queryClient.setQueryData<any>(feedKey, (old: any) => {
+      if (!old) {
+        return {
+          pages: [{ posts: [optimisticPost], nextCursor: null }],
+          pageParams: [null],
+        }
+      }
+      const newPages = [...old.pages]
+      newPages[0] = {
+        ...newPages[0],
+        posts: [optimisticPost, ...(newPages[0]?.posts || [])],
+      }
+      return { ...old, pages: newPages }
+    })
+
+    // Close modal IMMEDIATELY — user goes back to feed and sees the post
     onCreated()
 
-    // Upload in background
+    // Upload + insert in background — user already sees the post
     try {
+      // Upload all media in parallel
       const urls = await Promise.all(pages.map(async (p) => {
         const ext = p.type === 'image' ? 'jpg' : p.type === 'video' ? 'webm' : 'webm'
         return await uploadMedia(p.file!, `posts/${p.type}`, ext)
@@ -103,6 +131,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
 
       if (urls.some(u => !u)) throw new Error('Falha no upload')
 
+      // Create the real post in DB
       const { data: post, error } = await supabase
         .from('posts')
         .insert({ user_id: user.id, caption: caption.trim() || null })
@@ -117,14 +146,47 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         sort_order: i,
         duration_seconds: p.duration || null,
       }))
-      await supabase.from('post_pages').insert(pagesToInsert)
-      queryClient.invalidateQueries({ queryKey: ['feed-posts'] })
+      const { data: insertedPages, error: pagesError } = await supabase
+        .from('post_pages')
+        .insert(pagesToInsert)
+        .select()
+      if (pagesError) throw pagesError
+
+      // SWAP optimistic post with real one (without disturbing feed)
+      queryClient.setQueryData<any>(feedKey, (old: any) => {
+        if (!old) return old
+        const newPages = old.pages.map((page: any) => ({
+          ...page,
+          posts: page.posts.map((p: any) =>
+            p.id === tempId
+              ? {
+                  ...post,
+                  author: optimisticPost.author,
+                  pages: insertedPages || optimisticPost.pages,
+                  likes: [],
+                  likedByMe: false,
+                  likesCount: 0,
+                  comments: [],
+                  commentsCount: 0,
+                  sharesCount: 0,
+                  _uploading: false,
+                }
+              : p
+          ),
+        }))
+        return { ...old, pages: newPages }
+      })
     } catch (err) {
       console.error(err)
       // Remove optimistic post on error
-      queryClient.setQueryData(['feed-posts'], (old: any) =>
-        (old || []).filter((p: any) => p.id !== tempId)
-      )
+      queryClient.setQueryData<any>(feedKey, (old: any) => {
+        if (!old) return old
+        const newPages = old.pages.map((page: any) => ({
+          ...page,
+          posts: page.posts.filter((p: any) => p.id !== tempId),
+        }))
+        return { ...old, pages: newPages }
+      })
       alert('Erro ao publicar post. Tente novamente.')
     }
   }
