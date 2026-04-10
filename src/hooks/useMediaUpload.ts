@@ -1,5 +1,11 @@
 import { useState } from 'react'
 
+// Persists last upload error so we can show it to the user (mobile debugging)
+let lastUploadError: string | null = null
+export function getLastUploadError(): string | null {
+  return lastUploadError
+}
+
 export function useMediaUpload() {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -7,6 +13,11 @@ export function useMediaUpload() {
   async function uploadMedia(file: File | Blob, folder: string, ext?: string): Promise<string | null> {
     setUploading(true)
     setProgress(0)
+    lastUploadError = null
+
+    const fileSize = file instanceof File || file instanceof Blob ? file.size : 0
+    const fileSizeMb = (fileSize / (1024 * 1024)).toFixed(1)
+
     try {
       let finalExt = ext
       if (!finalExt) {
@@ -24,7 +35,8 @@ export function useMediaUpload() {
       })
 
       if (!signRes.ok) {
-        throw new Error('Failed to get upload URL')
+        const errText = await signRes.text().catch(() => '')
+        throw new Error(`Sign URL falhou (${signRes.status}): ${errText}`)
       }
 
       const { uploadUrl, publicUrl } = await signRes.json()
@@ -35,6 +47,9 @@ export function useMediaUpload() {
         xhr.open('PUT', uploadUrl, true)
         xhr.setRequestHeader('Content-Type', contentType)
 
+        // Generous timeout for mobile networks (10 minutes)
+        xhr.timeout = 10 * 60 * 1000
+
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
             setProgress(Math.round((e.loaded / e.total) * 100))
@@ -43,16 +58,25 @@ export function useMediaUpload() {
 
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) resolve()
-          else reject(new Error(`Upload failed: ${xhr.status}`))
+          else reject(new Error(`R2 PUT falhou (${xhr.status}): ${xhr.responseText?.slice(0, 200) || ''}`))
         }
-        xhr.onerror = () => reject(new Error('Network error'))
-        xhr.send(file)
+        xhr.onerror = () => reject(new Error(`Erro de rede no upload (arquivo ${fileSizeMb}MB)`))
+        xhr.ontimeout = () => reject(new Error(`Timeout de upload (10min) — arquivo muito grande ou conexão lenta`))
+        xhr.onabort = () => reject(new Error('Upload cancelado'))
+
+        try {
+          xhr.send(file)
+        } catch (err: any) {
+          reject(new Error(`Erro ao iniciar upload: ${err.message || err}`))
+        }
       })
 
       setProgress(100)
       return publicUrl
-    } catch (err) {
-      console.error('Upload failed:', err)
+    } catch (err: any) {
+      const msg = err?.message || String(err)
+      console.error('Upload failed:', msg, 'fileSize:', fileSizeMb + 'MB')
+      lastUploadError = msg
       return null
     } finally {
       setUploading(false)

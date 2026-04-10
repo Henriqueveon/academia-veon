@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { useMediaUpload } from '../../hooks/useMediaUpload'
+import { useMediaUpload, getLastUploadError } from '../../hooks/useMediaUpload'
 import { useQueryClient } from '@tanstack/react-query'
 import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause } from 'lucide-react'
 
@@ -129,7 +129,10 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         return await uploadMedia(p.file!, `posts/${p.type}`, ext)
       }))
 
-      if (urls.some(u => !u)) throw new Error('Falha no upload')
+      if (urls.some(u => !u)) {
+        const detail = getLastUploadError() || 'erro desconhecido'
+        throw new Error(`Falha no upload: ${detail}`)
+      }
 
       // Create the real post in DB
       const { data: post, error } = await supabase
@@ -176,7 +179,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         }))
         return { ...old, pages: newPages }
       })
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
       // Remove optimistic post on error
       queryClient.setQueryData<any>(feedKey, (old: any) => {
@@ -187,7 +190,8 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         }))
         return { ...old, pages: newPages }
       })
-      alert('Erro ao publicar post. Tente novamente.')
+      const msg = err?.message || 'Erro desconhecido'
+      alert(`Erro ao publicar post:\n\n${msg}\n\nTente novamente.`)
     }
   }
 
