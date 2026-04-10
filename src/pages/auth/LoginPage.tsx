@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { useNavigate, Navigate, useSearchParams } from 'react-router-dom'
 import { GraduationCap, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 export function LoginPage() {
   const { user, profile, loading, signIn } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const returnTo = searchParams.get('returnTo') || '/treinamentos'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -21,7 +23,7 @@ export function LoginPage() {
   }
 
   if (user && profile) {
-    return <Navigate to="/treinamentos" replace />
+    return <Navigate to={returnTo} replace />
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -32,7 +34,7 @@ export function LoginPage() {
     if (error) {
       setError('Email ou senha incorretos')
     } else {
-      navigate('/treinamentos')
+      navigate(returnTo)
     }
     setSubmitting(false)
   }

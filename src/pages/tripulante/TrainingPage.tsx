@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Play, CheckCircle, ChevronLeft, ChevronRight, X, ArrowLeft } from 'lucide-react'
+import { Play, CheckCircle, ChevronLeft, ChevronRight, X, ArrowLeft, Link2, Check } from 'lucide-react'
 import { VideoPlayer } from '../../components/VideoPlayer'
 
 interface LessonWithProgress {
@@ -25,9 +25,11 @@ function extractYoutubeId(url: string): string | null {
 export function TrainingPage() {
   const { id: trainingId } = useParams()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [selectedLesson, setSelectedLesson] = useState<LessonWithProgress | null>(null)
+  const [autoOpenDone, setAutoOpenDone] = useState(false)
 
   const logView = async (lessonId: string): Promise<string | null> => {
     if (!user) return null
@@ -98,6 +100,35 @@ export function TrainingPage() {
     },
   })
 
+  // Auto-open lesson from ?aula= query param
+  useEffect(() => {
+    if (autoOpenDone || !modules.length) return
+    const aulaId = searchParams.get('aula')
+    if (!aulaId) { setAutoOpenDone(true); return }
+
+    for (const mod of modules) {
+      const lesson = (mod as any).lessons?.find((l: any) => l.id === aulaId)
+      if (lesson) {
+        logView(lesson.id)
+        setSelectedLesson(lesson)
+        setAutoOpenDone(true)
+        return
+      }
+    }
+    setAutoOpenDone(true)
+  }, [modules, autoOpenDone, searchParams])
+
+  function selectLesson(lesson: LessonWithProgress) {
+    logView(lesson.id)
+    setSelectedLesson(lesson)
+    setSearchParams({ aula: lesson.id }, { replace: true })
+  }
+
+  function closeLesson() {
+    setSelectedLesson(null)
+    setSearchParams({}, { replace: true })
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -131,7 +162,7 @@ export function TrainingPage() {
           <div className="mb-8 bg-bg-card border border-navy-800 rounded-xl p-5">
             <h3 className="text-sm font-medium text-text-muted mb-3">Continuar Assistindo</h3>
             <button
-              onClick={() => { logView(nextLesson.lesson.id); setSelectedLesson(nextLesson.lesson) }}
+              onClick={() => selectLesson(nextLesson.lesson)}
               className="flex items-center gap-4 w-full text-left hover:bg-navy-800/50 rounded-lg p-2 -m-2 transition-colors"
             >
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-veon flex items-center justify-center">
@@ -161,7 +192,7 @@ export function TrainingPage() {
             <ModuleRow
               key={mod.id}
               module={mod}
-              onSelectLesson={(lesson) => { logView(lesson.id); setSelectedLesson(lesson) }}
+              onSelectLesson={(lesson) => selectLesson(lesson)}
             />
           ))}
         </div>
@@ -170,7 +201,7 @@ export function TrainingPage() {
       {selectedLesson && (
         <VideoModal
           lesson={selectedLesson}
-          onClose={() => setSelectedLesson(null)}
+          onClose={closeLesson}
           onMarkWatched={(id) => {
             markWatched.mutate(id)
             setSelectedLesson(prev => prev ? { ...prev, watched: true } : null)
@@ -286,6 +317,28 @@ function LessonCard({
         {lesson.description && <p className="text-xs text-text-muted line-clamp-2">{lesson.description}</p>}
       </div>
     </div>
+  )
+}
+
+function CopyLessonLink({ trainingId, lessonId }: { trainingId: string; lessonId: string }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation()
+    const url = `${window.location.origin}/treinamentos/${trainingId}?aula=${lessonId}`
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1 text-text-muted hover:text-text-primary transition-colors"
+      title="Copiar link da aula"
+    >
+      {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Link2 className="w-3.5 h-3.5" />}
+    </button>
   )
 }
 

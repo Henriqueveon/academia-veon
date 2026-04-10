@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Outlet, Navigate } from 'react-router-dom'
+import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import { Menu, GraduationCap } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Sidebar } from './Sidebar'
 
 export function AppLayout() {
   const { user, loading } = useAuth()
+  const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   if (loading) {
@@ -16,7 +17,10 @@ export function AppLayout() {
     )
   }
 
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) {
+    const returnTo = location.pathname + location.search
+    return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />
+  }
 
   return (
     <div className="min-h-screen bg-bg-primary">

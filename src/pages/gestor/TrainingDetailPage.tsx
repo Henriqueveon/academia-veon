@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
-import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Play, X, Maximize, Minimize, Gauge, ArrowLeft } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Play, X, Maximize, Minimize, Gauge, ArrowLeft, Link2, Check } from 'lucide-react'
 import { ImageUpload } from '../../components/ImageUpload'
 import { VideoUpload } from '../../components/VideoUpload'
 import { VideoPlayer } from '../../components/VideoPlayer'
@@ -468,6 +468,7 @@ export function TrainingDetailPage() {
                               <div className="flex items-center gap-2 mt-2">
                                 <span className="text-xs text-text-muted">Aula: {lesson.sort_order}</span>
                                 <div className="ml-auto flex gap-1">
+                                  <CopyLessonLink trainingId={trainingId!} lessonId={lesson.id} />
                                   <button
                                     onClick={() => { setExpandedModule(mod.id); startEditLesson(lesson) }}
                                     className="p-1 text-text-muted hover:text-text-primary transition-colors"
@@ -507,6 +508,28 @@ export function TrainingDetailPage() {
         />
       )}
     </div>
+  )
+}
+
+function CopyLessonLink({ trainingId, lessonId }: { trainingId: string; lessonId: string }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation()
+    const url = `${window.location.origin}/treinamentos/${trainingId}?aula=${lessonId}`
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1 text-text-muted hover:text-text-primary transition-colors"
+      title="Copiar link da aula"
+    >
+      {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Link2 className="w-3.5 h-3.5" />}
+    </button>
   )
 }
 
