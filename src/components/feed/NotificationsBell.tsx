@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Bell, User, Heart, MessageCircle, UserPlus, Share2, FileText, BookOpen, Sparkles, Wallet } from 'lucide-react'
+import { Bell, User, Heart, MessageCircle, UserPlus, Share2, FileText, BookOpen, Sparkles, Wallet, X } from 'lucide-react'
 
 interface NotifConfig {
   icon: any
@@ -96,9 +96,11 @@ export function NotificationsBell() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   })
 
-  // Close on outside click
+  // Close on outside click (desktop only — mobile uses overlay)
   useEffect(() => {
     function handleClick(e: MouseEvent) {
+      // Only handle on desktop
+      if (window.innerWidth < 768) return
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false)
       }
@@ -143,6 +145,82 @@ export function NotificationsBell() {
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
   }
 
+  // Shared content rendered in both mobile modal and desktop dropdown
+  const NotificationsContent = (
+    <>
+      <div className="flex items-center justify-between p-4 border-b border-navy-800">
+        <h3 className="font-semibold text-text-primary">Notificações</h3>
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <button
+              onClick={() => markAllRead.mutate()}
+              className="text-xs text-red-veon hover:text-red-veon-dark"
+            >
+              Marcar todas lidas
+            </button>
+          )}
+          <button
+            onClick={() => setOpen(false)}
+            className="md:hidden text-text-muted hover:text-text-primary p-1"
+            aria-label="Fechar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="overflow-y-auto flex-1 md:max-h-[60vh]">
+        {notifications.length === 0 ? (
+          <div className="py-12 text-center text-text-muted">
+            <Bell className="w-10 h-10 mx-auto mb-2 opacity-20" />
+            <p className="text-sm">Sem notificações</p>
+          </div>
+        ) : (
+          notifications.map((n: any) => {
+            const config = NOTIF_LABELS[n.type] || NOTIF_LABELS.new_post_feed
+            const Icon = config.icon
+            const actorName = n.actor?.name || 'Alguém'
+            const extra = n.training?.title || undefined
+
+            return (
+              <button
+                key={n.id}
+                onClick={() => handleNotifClick(n)}
+                className={`w-full flex items-start gap-3 p-3 hover:bg-navy-800 transition-colors text-left border-b border-navy-800/50 ${
+                  !n.read ? 'bg-red-veon/5' : ''
+                }`}
+              >
+                {/* Avatar */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-navy-900 flex items-center justify-center">
+                    {n.actor?.avatar_url ? (
+                      <img src={n.actor.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-5 h-5 text-text-muted" />
+                    )}
+                  </div>
+                  <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-bg-card flex items-center justify-center ${config.color}`}>
+                    <Icon className="w-3 h-3" />
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-text-primary">{config.text(actorName, extra)}</p>
+                  <p className="text-xs text-text-muted mt-0.5">{formatTime(n.created_at)}</p>
+                </div>
+
+                {!n.read && (
+                  <span className="w-2 h-2 rounded-full bg-red-veon flex-shrink-0 mt-2" />
+                )}
+              </button>
+            )
+          })
+        )}
+      </div>
+    </>
+  )
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -159,69 +237,25 @@ export function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-80 sm:w-96 bg-bg-card border border-navy-800 rounded-2xl shadow-xl overflow-hidden z-50">
-          <div className="flex items-center justify-between p-4 border-b border-navy-800">
-            <h3 className="font-semibold text-text-primary">Notificações</h3>
-            {unreadCount > 0 && (
-              <button
-                onClick={() => markAllRead.mutate()}
-                className="text-xs text-red-veon hover:text-red-veon-dark"
-              >
-                Marcar todas lidas
-              </button>
-            )}
+        <>
+          {/* Mobile: full-screen modal */}
+          <div
+            className="md:hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+            onClick={() => setOpen(false)}
+          >
+            <div
+              className="bg-bg-card border border-navy-800 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {NotificationsContent}
+            </div>
           </div>
 
-          <div className="max-h-[60vh] overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="py-12 text-center text-text-muted">
-                <Bell className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                <p className="text-sm">Sem notificações</p>
-              </div>
-            ) : (
-              notifications.map((n: any) => {
-                const config = NOTIF_LABELS[n.type] || NOTIF_LABELS.new_post_feed
-                const Icon = config.icon
-                const actorName = n.actor?.name || 'Alguém'
-                const extra = n.training?.title || undefined
-
-                return (
-                  <button
-                    key={n.id}
-                    onClick={() => handleNotifClick(n)}
-                    className={`w-full flex items-start gap-3 p-3 hover:bg-navy-800 transition-colors text-left border-b border-navy-800/50 ${
-                      !n.read ? 'bg-red-veon/5' : ''
-                    }`}
-                  >
-                    {/* Avatar */}
-                    <div className="relative flex-shrink-0">
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-navy-900 flex items-center justify-center">
-                        {n.actor?.avatar_url ? (
-                          <img src={n.actor.avatar_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <User className="w-5 h-5 text-text-muted" />
-                        )}
-                      </div>
-                      <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-bg-card flex items-center justify-center ${config.color}`}>
-                        <Icon className="w-3 h-3" />
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-text-primary">{config.text(actorName, extra)}</p>
-                      <p className="text-xs text-text-muted mt-0.5">{formatTime(n.created_at)}</p>
-                    </div>
-
-                    {!n.read && (
-                      <span className="w-2 h-2 rounded-full bg-red-veon flex-shrink-0 mt-2" />
-                    )}
-                  </button>
-                )
-              })
-            )}
+          {/* Desktop: dropdown */}
+          <div className="hidden md:block absolute right-0 top-12 w-96 bg-bg-card border border-navy-800 rounded-2xl shadow-xl overflow-hidden z-50">
+            {NotificationsContent}
           </div>
-        </div>
+        </>
       )}
     </div>
   )
