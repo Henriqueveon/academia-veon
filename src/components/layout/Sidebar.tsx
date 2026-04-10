@@ -15,7 +15,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
   const tripulanteLinks = [
     { path: '/treinamentos', label: 'Treinamentos', icon: BookOpen },
-    { path: '/comunidade', label: 'Comunidade', icon: MessagesSquare },
+    { path: '/comunidade', label: 'Feed', icon: MessagesSquare },
     { path: '/perfil', label: 'Meu Perfil', icon: UserCircle },
   ]
 

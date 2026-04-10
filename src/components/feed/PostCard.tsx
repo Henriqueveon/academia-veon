@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useRef, useEffect, forwardRef } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic } from 'lucide-react'
+import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic, Eye, UserPlus, UserCheck, Volume2, VolumeX } from 'lucide-react'
 
 interface Props {
   post: any
@@ -10,14 +11,72 @@ interface Props {
 
 export function PostCard({ post }: Props) {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [currentPage, setCurrentPage] = useState(0)
   const [showComments, setShowComments] = useState(false)
   const [newComment, setNewComment] = useState('')
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null)
   const [showMenu, setShowMenu] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   const isOwn = post.user_id === user?.id
+
+  // Following status
+  const { data: isFollowing = false } = useQuery({
+    queryKey: ['follow', post.user_id, user?.id],
+    queryFn: async () => {
+      if (!user || isOwn) return false
+      const { data } = await supabase
+        .from('follows')
+        .select('*')
+        .eq('follower_id', user.id)
+        .eq('following_id', post.user_id)
+        .maybeSingle()
+      return !!data
+    },
+    enabled: !!user && !isOwn,
+  })
+
+  const toggleFollow = useMutation({
+    mutationFn: async () => {
+      if (isFollowing) {
+        await supabase.from('follows').delete().eq('follower_id', user!.id).eq('following_id', post.user_id)
+      } else {
+        await supabase.from('follows').insert({ follower_id: user!.id, following_id: post.user_id })
+      }
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['follow', post.user_id, user?.id] })
+      const prev = queryClient.getQueryData(['follow', post.user_id, user?.id])
+      queryClient.setQueryData(['follow', post.user_id, user?.id], !isFollowing)
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx) queryClient.setQueryData(['follow', post.user_id, user?.id], ctx.prev)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile-social'] })
+    },
+  })
+
+  // Auto-play video when in viewport
+  useEffect(() => {
+    if (!videoRef.current) return
+    const video = videoRef.current
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+          video.play().catch(() => {})
+        } else {
+          video.pause()
+        }
+      },
+      { threshold: [0, 0.6, 1] }
+    )
+    observer.observe(video)
+    return () => observer.disconnect()
+  }, [currentPage, post.pages])
 
   // Toggle like (optimistic)
   const toggleLike = useMutation({
@@ -194,30 +253,55 @@ export function PostCard({ post }: Props) {
     <div className="bg-bg-card border border-navy-800 rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-navy-900 flex items-center justify-center">
+        <button
+          onClick={() => navigate(`/perfil/${post.user_id}`)}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left flex-1 min-w-0"
+        >
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-navy-900 flex items-center justify-center flex-shrink-0">
             {post.author.avatar_url ? (
-              <img src={post.author.avatar_url} alt="" className="w-full h-full object-cover" />
+              <img src={post.author.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
             ) : (
               <User className="w-5 h-5 text-text-muted" />
             )}
           </div>
-          <div>
-            <p className="text-sm font-semibold text-text-primary">{post.author.name}</p>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-text-primary truncate">{post.author.name}</p>
             {post.author.profession && (
-              <p className="text-xs text-text-muted">{post.author.profession}</p>
+              <p className="text-xs text-text-muted truncate">{post.author.profession}</p>
             )}
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-text-muted">{formatDate(post.created_at)}</span>
+        </button>
+
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {!isOwn && user && (
+            <>
+              <button
+                onClick={() => navigate(`/perfil/${post.user_id}`)}
+                className="p-2 text-text-muted hover:text-text-primary bg-navy-800 hover:bg-navy-700 rounded-lg transition-colors"
+                title="Ver perfil"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => toggleFollow.mutate()}
+                className={`p-2 rounded-lg transition-colors ${
+                  isFollowing
+                    ? 'bg-green-900/30 text-green-400 hover:bg-red-900/30 hover:text-red-veon'
+                    : 'bg-red-veon hover:bg-red-veon-dark text-white'
+                }`}
+                title={isFollowing ? 'Deixar de seguir' : 'Seguir'}
+              >
+                {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+              </button>
+            </>
+          )}
           {isOwn && (
             <div className="relative">
-              <button onClick={() => setShowMenu(!showMenu)} className="p-1 text-text-muted hover:text-text-primary">
+              <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-text-muted hover:text-text-primary">
                 <MoreHorizontal className="w-4 h-4" />
               </button>
               {showMenu && (
-                <div className="absolute right-0 top-7 bg-bg-input border border-navy-700 rounded-lg p-1 z-10 min-w-[120px]">
+                <div className="absolute right-0 top-9 bg-bg-input border border-navy-700 rounded-lg p-1 z-10 min-w-[120px]">
                   <button
                     onClick={() => { if (confirm('Excluir este post?')) deletePost.mutate() }}
                     className="w-full flex items-center gap-2 text-xs text-red-veon hover:bg-red-900/20 px-3 py-2 rounded"
@@ -243,15 +327,19 @@ export function PostCard({ post }: Props) {
         {currentPageData && (
           <>
             {currentPageData.type === 'image' && currentPageData.image_url && (
-              <img src={currentPageData.image_url} alt="" className="w-full h-full object-cover" />
+              <img
+                src={currentPageData.image_url}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-cover"
+              />
             )}
             {currentPageData.type === 'video' && currentPageData.image_url && (
-              <video
+              <FeedVideo
+                ref={videoRef}
                 key={currentPageData.id}
                 src={currentPageData.image_url}
-                className="w-full h-full object-cover"
-                controls
-                playsInline
               />
             )}
             {currentPageData.type === 'audio' && currentPageData.image_url && (
@@ -294,32 +382,32 @@ export function PostCard({ post }: Props) {
       </div>
 
       {/* Actions */}
-      <div className="px-4 pt-3 pb-2 flex items-center gap-4">
+      <div className="px-4 pt-3 pb-2 flex items-center gap-5">
         <button
           onClick={() => toggleLike.mutate()}
           className="flex items-center gap-1.5 text-text-secondary hover:scale-110 transition-transform"
         >
           <Heart className={`w-6 h-6 ${post.likedByMe ? 'fill-red-veon text-red-veon' : ''}`} />
+          <span className="text-sm font-semibold text-text-primary">{post.likesCount}</span>
         </button>
         <button
           onClick={() => setShowComments(!showComments)}
           className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary"
         >
           <MessageCircle className="w-6 h-6" />
+          <span className="text-sm font-semibold text-text-primary">{post.commentsCount}</span>
         </button>
       </div>
-
-      {/* Likes count */}
-      {post.likesCount > 0 && (
-        <p className="px-4 text-sm font-semibold text-text-primary">
-          {post.likesCount} {post.likesCount === 1 ? 'curtida' : 'curtidas'}
-        </p>
-      )}
 
       {/* Caption */}
       {post.caption && (
         <p className="px-4 pt-1 text-sm text-text-primary">
-          <span className="font-semibold">{post.author.name}</span>{' '}
+          <button
+            onClick={() => navigate(`/perfil/${post.user_id}`)}
+            className="font-semibold hover:text-red-veon transition-colors"
+          >
+            {post.author.name}
+          </button>{' '}
           <span className="text-text-secondary whitespace-pre-line">{post.caption}</span>
         </p>
       )}
@@ -328,9 +416,9 @@ export function PostCard({ post }: Props) {
       {post.commentsCount > 0 && !showComments && (
         <button
           onClick={() => setShowComments(true)}
-          className="px-4 pt-1 text-xs text-text-muted hover:text-text-secondary"
+          className="px-4 pt-1 text-xs text-text-muted hover:text-text-secondary block"
         >
-          Ver {post.commentsCount} {post.commentsCount === 1 ? 'comentário' : 'comentários'}
+          Ver {post.commentsCount === 1 ? 'comentário' : `os ${post.commentsCount} comentários`}
         </button>
       )}
 
@@ -391,6 +479,100 @@ export function PostCard({ post }: Props) {
     </div>
   )
 }
+
+const FeedVideo = forwardRef<HTMLVideoElement, { src: string }>(({ src }, ref) => {
+  const localRef = useRef<HTMLVideoElement>(null)
+  // Sync external ref
+  useEffect(() => {
+    if (!ref) return
+    if (typeof ref === 'function') ref(localRef.current)
+    else ref.current = localRef.current
+  }, [ref])
+
+  const [muted, setMuted] = useState(true)
+  const [progress, setProgress] = useState(0)
+  const [holding, setHolding] = useState(false)
+  const holdTimerRef = useRef<number | null>(null)
+
+  function handlePointerDown(e: React.PointerEvent) {
+    if (!localRef.current) return
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const xRatio = (e.clientX - rect.left) / rect.width
+    const yRatio = (e.clientY - rect.top) / rect.height
+    // Right-top quadrant: x > 0.5, y < 0.5
+    if (xRatio > 0.5 && yRatio < 0.5) {
+      // Start hold timer (300ms to confirm hold)
+      holdTimerRef.current = window.setTimeout(() => {
+        if (localRef.current) {
+          localRef.current.playbackRate = 1.25
+          setHolding(true)
+        }
+      }, 300)
+    }
+  }
+
+  function handlePointerUp() {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current)
+      holdTimerRef.current = null
+    }
+    if (localRef.current) {
+      localRef.current.playbackRate = 1
+    }
+    setHolding(false)
+  }
+
+  function handleVideoClick() {
+    if (!localRef.current || holding) return
+    if (localRef.current.paused) localRef.current.play()
+    else localRef.current.pause()
+  }
+
+  return (
+    <div
+      className="relative w-full h-full"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      <video
+        ref={localRef}
+        src={src}
+        className="w-full h-full object-cover"
+        playsInline
+        muted={muted}
+        loop
+        preload="metadata"
+        onClick={handleVideoClick}
+        onTimeUpdate={(e) => {
+          const v = e.currentTarget
+          if (v.duration > 0) setProgress((v.currentTime / v.duration) * 100)
+        }}
+      />
+
+      {/* Mute toggle (Instagram style: bottom-right) */}
+      <button
+        onClick={(e) => { e.stopPropagation(); setMuted(!muted) }}
+        className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 backdrop-blur-sm rounded-full p-2 transition-colors z-10"
+      >
+        {muted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
+      </button>
+
+      {/* Speed indicator */}
+      {holding && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full pointer-events-none z-10">
+          1.25×
+        </div>
+      )}
+
+      {/* Progress bar */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20">
+        <div className="h-full bg-white transition-[width] duration-100" style={{ width: `${progress}%` }} />
+      </div>
+    </div>
+  )
+})
 
 function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
   const audioRef = useRef<HTMLAudioElement>(null)

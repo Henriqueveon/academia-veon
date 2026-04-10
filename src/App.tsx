@@ -21,7 +21,9 @@ import { FeedPage } from './pages/tripulante/FeedPage'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 2,
+      staleTime: 1000 * 60 * 5,           // 5 min — não refaz query a cada navegação
+      gcTime: 1000 * 60 * 30,              // 30 min em memória
+      refetchOnWindowFocus: false,
       retry: 1,
     },
   },
@@ -39,6 +41,7 @@ function App() {
               <Route path="/treinamentos" element={<TrainingListPage />} />
               <Route path="/treinamentos/:id" element={<TrainingPage />} />
               <Route path="/perfil" element={<ProfilePage />} />
+              <Route path="/perfil/:userId" element={<ProfilePage />} />
               <Route path="/comunidade" element={<FeedPage />} />
               <Route element={<GestorGuard />}>
                 <Route path="/gestor" element={<DashboardPage />} />
