@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic, Eye, UserPlus, UserCheck, Volume2, VolumeX } from 'lucide-react'
+import { ShareMenu } from './ShareMenu'
 
 interface Props {
   post: any
@@ -18,6 +19,7 @@ export function PostCard({ post }: Props) {
   const [newComment, setNewComment] = useState('')
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null)
   const [showMenu, setShowMenu] = useState(false)
+  const [showShare, setShowShare] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
   const isOwn = post.user_id === user?.id
@@ -397,7 +399,17 @@ export function PostCard({ post }: Props) {
           <MessageCircle className="w-6 h-6" />
           <span className="text-sm font-semibold text-text-primary">{post.commentsCount}</span>
         </button>
+        <button
+          onClick={() => setShowShare(true)}
+          className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary hover:scale-110 transition-transform"
+          title="Compartilhar"
+        >
+          <Send className="w-[22px] h-[22px] -translate-y-px" strokeWidth={2} />
+          <span className="text-sm font-semibold text-text-primary">{post.sharesCount || 0}</span>
+        </button>
       </div>
+
+      {showShare && <ShareMenu post={post} onClose={() => setShowShare(false)} />}
 
       {/* Caption */}
       {post.caption && (

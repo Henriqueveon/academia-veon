@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { Plus, RefreshCw } from 'lucide-react'
 import { CreatePostWizard } from '../../components/feed/CreatePostWizard'
 import { PostCard } from '../../components/feed/PostCard'
+import { NotificationsBell } from '../../components/feed/NotificationsBell'
 import { saveCache, loadCache } from '../../lib/feedCache'
 
 const PAGE_SIZE = 5
@@ -30,10 +31,11 @@ async function fetchFeedPage(cursor: string | null, userId: string | null): Prom
   const postIds = posts.map((p: any) => p.id)
   const userIds = [...new Set(posts.map((p: any) => p.user_id))]
 
-  const [pages, likes, comments, profiles] = await Promise.all([
+  const [pages, likes, comments, shares, profiles] = await Promise.all([
     supabase.from('post_pages').select('*').in('post_id', postIds).order('sort_order'),
     supabase.from('post_likes').select('*').in('post_id', postIds),
     supabase.from('post_comments').select('*').in('post_id', postIds).order('created_at'),
+    supabase.from('post_shares').select('post_id').in('post_id', postIds),
     supabase.from('profiles').select('id, name, avatar_url, profession').in('id', userIds),
   ])
 
@@ -68,6 +70,7 @@ async function fetchFeedPage(cursor: string | null, userId: string | null): Prom
     likedByMe: (likes.data || []).some((l: any) => l.post_id === post.id && l.user_id === userId),
     likesCount: (likes.data || []).filter((l: any) => l.post_id === post.id).length,
     commentsCount: (comments.data || []).filter((c: any) => c.post_id === post.id).length,
+    sharesCount: (shares.data || []).filter((s: any) => s.post_id === post.id).length,
   }))
 
   return {
@@ -189,6 +192,7 @@ export function FeedPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <NotificationsBell />
           <button
             onClick={handleRefresh}
             disabled={refreshing}

@@ -5,6 +5,7 @@ import { AppLayout } from './components/layout/AppLayout'
 import { GestorGuard } from './components/layout/GestorGuard'
 import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/public/RegisterPage'
+import { PublicPostPage } from './pages/public/PublicPostPage'
 import { TrainingListPage } from './pages/tripulante/TrainingListPage'
 import { TrainingPage } from './pages/tripulante/TrainingPage'
 import { TrainingsPage } from './pages/gestor/TrainingsPage'
@@ -37,6 +38,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/cadastro/:slug" element={<RegisterPage />} />
+            <Route path="/p/:postId" element={<PublicPostPage />} />
             <Route element={<AppLayout />}>
               <Route path="/treinamentos" element={<TrainingListPage />} />
               <Route path="/treinamentos/:id" element={<TrainingPage />} />
