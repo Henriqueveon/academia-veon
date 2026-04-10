@@ -15,6 +15,8 @@ import { AccessPage } from './pages/gestor/AccessPage'
 import { EngagementPage } from './pages/gestor/EngagementPage'
 import { RegistrationLinksPage } from './pages/gestor/RegistrationLinksPage'
 import { DashboardPage } from './pages/gestor/DashboardPage'
+import { ProfilePage } from './pages/tripulante/ProfilePage'
+import { FeedPage } from './pages/tripulante/FeedPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,6 +38,8 @@ function App() {
             <Route element={<AppLayout />}>
               <Route path="/treinamentos" element={<TrainingListPage />} />
               <Route path="/treinamentos/:id" element={<TrainingPage />} />
+              <Route path="/perfil" element={<ProfilePage />} />
+              <Route path="/comunidade" element={<FeedPage />} />
               <Route element={<GestorGuard />}>
                 <Route path="/gestor" element={<DashboardPage />} />
                 <Route path="/gestor/treinamentos" element={<TrainingsPage />} />
