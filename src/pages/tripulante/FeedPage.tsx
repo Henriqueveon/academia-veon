@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { Plus, RefreshCw } from 'lucide-react'
@@ -16,14 +16,19 @@ interface FeedPage {
   nextCursor: string | null
 }
 
-async function fetchFeedPage(cursor: string | null, userId: string | null): Promise<FeedPage> {
+async function fetchFeedPage(cursor: string | null, userId: string | null, fetchNewer = false, newerThan?: string): Promise<FeedPage> {
   let query = supabase
     .from('posts')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE)
 
-  if (cursor) query = query.lt('created_at', cursor)
+  if (fetchNewer && newerThan) {
+    // Fetch only posts newer than the most recent we have
+    query = query.gt('created_at', newerThan)
+  } else if (cursor) {
+    query = query.lt('created_at', cursor)
+  }
 
   const { data: posts } = await query
   if (!posts || posts.length === 0) return { posts: [], nextCursor: null }
@@ -145,20 +150,58 @@ export function FeedPage() {
     }
   }
 
+  // Refresh: fetch only NEWER posts and prepend (don't lose older ones)
+  async function fetchNewerAndMerge() {
+    if (!user) return
+    setRefreshing(true)
+    try {
+      // Find the most recent post we already have
+      const currentPosts = data?.pages.flatMap((p) => p.posts) || []
+      const mostRecentDate = currentPosts.length > 0 ? currentPosts[0].created_at : null
+
+      if (!mostRecentDate) {
+        // No existing posts — do a normal refetch
+        await refetch()
+        return
+      }
+
+      // Fetch only newer posts
+      const newerPage = await fetchFeedPage(null, user.id, true, mostRecentDate)
+
+      if (newerPage.posts.length > 0) {
+        // Merge: add new posts to the start of the first page, dedupe by id
+        queryClient.setQueryData<InfiniteData<FeedPage, string | null>>(
+          ['feed-posts', user.id],
+          (old) => {
+            if (!old) return old
+            const existingIds = new Set(old.pages.flatMap((p) => p.posts.map((post: any) => post.id)))
+            const trulyNew = newerPage.posts.filter((p: any) => !existingIds.has(p.id))
+            if (trulyNew.length === 0) return old
+
+            const newPages = [...old.pages]
+            newPages[0] = {
+              ...newPages[0],
+              posts: [...trulyNew, ...newPages[0].posts],
+            }
+            return { ...old, pages: newPages }
+          }
+        )
+      }
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   async function handleTouchEnd() {
     if (pulling > 60) {
-      setRefreshing(true)
-      await refetch()
-      setRefreshing(false)
+      await fetchNewerAndMerge()
     }
     setPulling(0)
     touchStartY.current = null
   }
 
   async function handleRefresh() {
-    setRefreshing(true)
-    await refetch()
-    setRefreshing(false)
+    await fetchNewerAndMerge()
   }
 
   // Flatten posts from all pages
