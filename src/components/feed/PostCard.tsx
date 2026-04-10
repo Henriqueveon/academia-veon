@@ -587,6 +587,8 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string }>(({ src }, ref) =
   )
 })
 
+const PLAYBACK_RATES = [1, 1.25, 1.5, 2]
+
 function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const progressRef = useRef<HTMLDivElement>(null)
@@ -595,6 +597,14 @@ function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
   const [audioDuration, setAudioDuration] = useState<number>(
     duration && isFinite(duration) && duration > 0 ? duration : 0
   )
+  const [rateIndex, setRateIndex] = useState(0)
+  const playbackRate = PLAYBACK_RATES[rateIndex]
+
+  function cyclePlaybackRate() {
+    const next = (rateIndex + 1) % PLAYBACK_RATES.length
+    setRateIndex(next)
+    if (audioRef.current) audioRef.current.playbackRate = PLAYBACK_RATES[next]
+  }
 
   // Workaround: WebM duration trick — if duration is Infinity, seek to large value to force browser to compute it
   function handleLoadedMetadata(e: React.SyntheticEvent<HTMLAudioElement>) {
@@ -693,6 +703,17 @@ function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
           </div>
         </div>
       </div>
+
+      {/* Playback speed (only visible when playing) */}
+      {playing && (
+        <button
+          onClick={cyclePlaybackRate}
+          className="bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold rounded-full w-10 h-7 flex items-center justify-center flex-shrink-0 transition-colors"
+          title="Velocidade"
+        >
+          {playbackRate}×
+        </button>
+      )}
 
       <audio
         ref={audioRef}
