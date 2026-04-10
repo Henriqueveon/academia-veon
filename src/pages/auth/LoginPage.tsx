@@ -7,7 +7,8 @@ export function LoginPage() {
   const { user, profile, loading, signIn } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const returnTo = searchParams.get('returnTo') || '/treinamentos'
+  const defaultTripulanteRoute = '/comunidade'
+  const returnTo = searchParams.get('returnTo') || defaultTripulanteRoute
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -23,7 +24,7 @@ export function LoginPage() {
   }
 
   if (user && profile) {
-    const defaultRoute = profile.role === 'gestor' ? '/gestor' : '/treinamentos'
+    const defaultRoute = profile.role === 'gestor' ? '/gestor' : '/comunidade'
     const destination = searchParams.get('returnTo') ? returnTo : defaultRoute
     return <Navigate to={destination} replace />
   }

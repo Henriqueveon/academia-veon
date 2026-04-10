@@ -5,7 +5,7 @@ export function GestorGuard() {
   const { profile } = useAuth()
 
   if (profile?.role !== 'gestor') {
-    return <Navigate to="/treinamentos" replace />
+    return <Navigate to="/comunidade" replace />
   }
 
   return <Outlet />

@@ -56,7 +56,7 @@ function App() {
                 <Route path="/gestor/links-cadastro" element={<RegistrationLinksPage />} />
               </Route>
             </Route>
-            <Route path="*" element={<Navigate to="/treinamentos" replace />} />
+            <Route path="*" element={<Navigate to="/comunidade" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

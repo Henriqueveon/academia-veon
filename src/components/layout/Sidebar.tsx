@@ -2,12 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { GraduationCap, LogOut, Settings, Users, BookOpen, Layers, Shield, BarChart3, Link2, LayoutDashboard, UserCircle, MessagesSquare } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
-interface SidebarProps {
-  isOpen?: boolean
-  onClose?: () => void
-}
-
-export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
+export function Sidebar() {
   const { profile, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -33,24 +28,10 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
   const handleNavigate = (path: string) => {
     navigate(path)
-    onClose?.()
   }
 
   return (
-    <>
-      {/* Mobile backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={onClose}
-        />
-      )}
-
-      <aside
-        className={`fixed left-0 top-0 h-screen w-64 bg-bg-sidebar border-r border-navy-800 flex flex-col z-50 transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0`}
-      >
+    <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-bg-sidebar border-r border-navy-800 flex-col z-50">
         {/* Header */}
         <div className="p-6 border-b border-navy-800">
           <div className="flex items-center gap-3">
@@ -130,7 +111,6 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             </button>
           </div>
         </div>
-      </aside>
-    </>
+    </aside>
   )
 }
