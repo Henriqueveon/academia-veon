@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { Plus, Pencil, Trash2, BookOpen, ChevronRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, BookOpen, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import { ImageUpload } from '../../components/ImageUpload'
 
 export function TrainingsPage() {
@@ -10,7 +10,7 @@ export function TrainingsPage() {
   const navigate = useNavigate()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<any>(null)
-  const [form, setForm] = useState({ title: '', description: '', thumbnail_url: '', sort_order: 0 })
+  const [form, setForm] = useState({ title: '', description: '', thumbnail_url: '', sort_order: 0, visibility: 'oculto', fake_students_count: '' as string | number })
 
   const { data: trainings = [], isLoading } = useQuery({
     queryKey: ['gestor-trainings'],
@@ -38,20 +38,18 @@ export function TrainingsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const payload = {
+        title: form.title,
+        description: form.description || null,
+        thumbnail_url: form.thumbnail_url || null,
+        sort_order: form.sort_order,
+        visibility: form.visibility,
+        fake_students_count: form.fake_students_count !== '' ? Number(form.fake_students_count) : null,
+      }
       if (editing) {
-        await supabase.from('trainings').update({
-          title: form.title,
-          description: form.description || null,
-          thumbnail_url: form.thumbnail_url || null,
-          sort_order: form.sort_order,
-        }).eq('id', editing.id)
+        await supabase.from('trainings').update(payload).eq('id', editing.id)
       } else {
-        await supabase.from('trainings').insert({
-          title: form.title,
-          description: form.description || null,
-          thumbnail_url: form.thumbnail_url || null,
-          sort_order: form.sort_order,
-        })
+        await supabase.from('trainings').insert(payload)
       }
     },
     onSuccess: () => {
@@ -68,14 +66,13 @@ export function TrainingsPage() {
   })
 
   function resetForm() {
-    setForm({ title: '', description: '', thumbnail_url: '', sort_order: 0 })
+    setForm({ title: '', description: '', thumbnail_url: '', sort_order: 0, visibility: 'oculto', fake_students_count: '' })
     setEditing(null)
     setShowForm(false)
   }
 
-  function startEdit(t: any, e: React.MouseEvent) {
-    e.stopPropagation()
-    setForm({ title: t.title, description: t.description || '', thumbnail_url: t.thumbnail_url || '', sort_order: t.sort_order })
+  function startEdit(t: any) {
+    setForm({ title: t.title, description: t.description || '', thumbnail_url: t.thumbnail_url || '', sort_order: t.sort_order, visibility: t.visibility || 'oculto', fake_students_count: t.fake_students_count ?? '' })
     setEditing(t)
     setShowForm(true)
   }
@@ -142,6 +139,30 @@ export function TrainingsPage() {
                 placeholder="Descrição do treinamento"
               />
             </div>
+            <div>
+              <label className="block text-sm text-text-secondary mb-1">Visibilidade</label>
+              <select
+                value={form.visibility}
+                onChange={(e) => setForm(f => ({ ...f, visibility: e.target.value }))}
+                className="w-full bg-bg-input border border-navy-700 rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-red-veon"
+              >
+                <option value="oculto">Oculto — Só quem tem acesso vê</option>
+                <option value="vitrine">Vitrine — Todos veem (com cadeado se sem acesso)</option>
+              </select>
+            </div>
+            {form.visibility === 'vitrine' && (
+              <div>
+                <label className="block text-sm text-text-secondary mb-1">Qtd. alunos (vitrine)</label>
+                <input
+                  type="number"
+                  value={form.fake_students_count}
+                  onChange={(e) => setForm(f => ({ ...f, fake_students_count: e.target.value }))}
+                  className="w-full bg-bg-input border border-navy-700 rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-red-veon"
+                  placeholder="Ex: 250 (deixe vazio para contar real)"
+                />
+                <p className="text-xs text-text-muted mt-1">Se preenchido, mostra esse número ao invés do real.</p>
+              </div>
+            )}
             <div className="col-span-1 md:col-span-2">
               <ImageUpload
                 value={form.thumbnail_url}
@@ -178,42 +199,48 @@ export function TrainingsPage() {
             return (
               <div
                 key={t.id}
-                onClick={() => navigate(`/gestor/treinamentos/${t.id}`)}
-                className="bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors cursor-pointer group"
+                className="bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors group"
               >
-                {t.thumbnail_url ? (
-                  <img src={t.thumbnail_url} alt={t.title} className="w-full h-40 object-cover" />
-                ) : (
-                  <div className="w-full h-40 bg-navy-900 flex items-center justify-center">
-                    <BookOpen className="w-12 h-12 text-navy-700" />
-                  </div>
-                )}
-                <div className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-text-primary text-lg">{t.title}</h3>
-                      {t.description && (
-                        <p className="text-sm text-text-muted mt-1 line-clamp-2">{t.description}</p>
-                      )}
+                <div className="cursor-pointer" onClick={() => navigate(`/gestor/treinamentos/${t.id}`)}>
+                  {t.thumbnail_url ? (
+                    <img src={t.thumbnail_url} alt={t.title} className="w-full h-40 object-cover" />
+                  ) : (
+                    <div className="w-full h-40 bg-navy-900 flex items-center justify-center">
+                      <BookOpen className="w-12 h-12 text-navy-700" />
                     </div>
-                    <ChevronRight className="w-5 h-5 text-text-muted group-hover:text-red-veon transition-colors flex-shrink-0 mt-1" />
+                  )}
+                  <div className="px-5 pt-5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-text-primary text-lg">{t.title}</h3>
+                        {t.description && (
+                          <p className="text-sm text-text-muted mt-1 line-clamp-2">{t.description}</p>
+                        )}
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-text-muted group-hover:text-red-veon transition-colors flex-shrink-0 mt-1" />
+                    </div>
                   </div>
+                </div>
+                <div className="px-5 pb-5">
                   <div className="flex items-center gap-4 mt-3 text-xs text-text-muted">
                     <span>{modCount} módulo(s)</span>
                     <span>{lessonCount} aula(s)</span>
+                    <span className={`flex items-center gap-1 ${t.visibility === 'vitrine' ? 'text-yellow-400' : ''}`}>
+                      {t.visibility === 'vitrine' ? <><Eye className="w-3 h-3" /> Vitrine</> : <><EyeOff className="w-3 h-3" /> Oculto</>}
+                    </span>
                   </div>
                   <div className="flex gap-2 mt-3">
                     <button
-                      onClick={(e) => startEdit(t, e)}
-                      className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
+                      onClick={() => startEdit(t)}
+                      className="flex items-center gap-1.5 text-xs bg-navy-800 hover:bg-navy-700 text-text-secondary hover:text-text-primary px-3 py-2 rounded-lg transition-colors"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-3.5 h-3.5" /> Editar
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); if (confirm('Excluir este treinamento e tudo dentro?')) deleteMutation.mutate(t.id) }}
-                      className="p-1.5 text-text-muted hover:text-red-veon transition-colors"
+                      onClick={() => { if (confirm('Excluir este treinamento e tudo dentro?')) deleteMutation.mutate(t.id) }}
+                      className="flex items-center gap-1.5 text-xs bg-navy-800 hover:bg-red-900/50 text-text-secondary hover:text-red-veon px-3 py-2 rounded-lg transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir
                     </button>
                   </div>
                 </div>

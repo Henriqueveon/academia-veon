@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Play, CheckCircle, ChevronLeft, ChevronRight, X, ArrowLeft, Link2, Check } from 'lucide-react'
+import { Play, CheckCircle, ChevronLeft, ChevronRight, X, ArrowLeft, Link2, Check, SkipBack, SkipForward } from 'lucide-react'
 import { VideoPlayer } from '../../components/VideoPlayer'
 
 interface LessonWithProgress {
@@ -93,6 +93,20 @@ export function TrainingPage() {
         lesson_id: lessonId,
         watched: true,
         watched_at: new Date().toISOString(),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['training-modules'] })
+    },
+  })
+
+  const unmarkWatched = useMutation({
+    mutationFn: async (lessonId: string) => {
+      await supabase.from('lesson_progress').upsert({
+        user_id: user!.id,
+        lesson_id: lessonId,
+        watched: false,
+        watched_at: null,
       })
     },
     onSuccess: () => {
@@ -198,16 +212,31 @@ export function TrainingPage() {
         </div>
       )}
 
-      {selectedLesson && (
-        <VideoModal
-          lesson={selectedLesson}
-          onClose={closeLesson}
-          onMarkWatched={(id) => {
-            markWatched.mutate(id)
-            setSelectedLesson(prev => prev ? { ...prev, watched: true } : null)
-          }}
-        />
-      )}
+      {selectedLesson && (() => {
+        const currentModule = modules.find((mod: any) =>
+          mod.lessons?.some((l: any) => l.id === selectedLesson.id)
+        )
+        const moduleLessons: LessonWithProgress[] = currentModule?.lessons || []
+
+        return (
+          <VideoModal
+            lesson={selectedLesson}
+            moduleLessons={moduleLessons}
+            onClose={closeLesson}
+            onMarkWatched={(id) => {
+              markWatched.mutate(id)
+              setSelectedLesson(prev => prev ? { ...prev, watched: true } : null)
+            }}
+            onUnmarkWatched={(id) => {
+              unmarkWatched.mutate(id)
+              setSelectedLesson(prev => prev ? { ...prev, watched: false } : null)
+            }}
+            onNavigate={(lesson) => {
+              selectLesson(lesson)
+            }}
+          />
+        )
+      })()}
     </div>
   )
 }
@@ -294,10 +323,12 @@ function LessonCard({
     || (bunnyId ? `https://vz-6d04ab5b-6ae.b-cdn.net/${bunnyId}/thumbnail.jpg` : null)
 
   return (
-    <div className="flex-shrink-0 w-60 md:w-72 bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-navy-600 transition-colors group/card">
+    <div className={`flex-shrink-0 w-60 md:w-72 bg-bg-card border rounded-xl overflow-hidden hover:border-navy-600 transition-colors group/card ${
+      lesson.watched ? 'border-green-800/50' : 'border-navy-800'
+    }`}>
       <div className="relative cursor-pointer" onClick={onClick}>
         {thumbnail ? (
-          <img src={thumbnail} alt={lesson.title} className="w-full h-40 object-cover" />
+          <img src={thumbnail} alt={lesson.title} className={`w-full h-40 object-cover ${lesson.watched ? 'opacity-75' : ''}`} />
         ) : (
           <div className="w-full h-40 bg-navy-900 flex items-center justify-center">
             <Play className="w-10 h-10 text-text-muted" />
@@ -307,14 +338,20 @@ function LessonCard({
           <Play className="w-12 h-12 text-white" fill="white" />
         </div>
         {lesson.watched && (
-          <div className="absolute top-2 right-2">
-            <CheckCircle className="w-6 h-6 text-green-400" fill="rgba(34,197,94,0.2)" />
+          <div className="absolute top-2 right-2 bg-green-600 rounded-full p-1">
+            <CheckCircle className="w-4 h-4 text-white" />
           </div>
         )}
       </div>
       <div className="p-4">
-        <h3 className="text-sm font-medium text-text-primary line-clamp-2 mb-1">{lesson.title}</h3>
-        {lesson.description && <p className="text-xs text-text-muted line-clamp-2">{lesson.description}</p>}
+        <div className="flex items-start gap-2">
+          <h3 className="text-sm font-medium text-text-primary line-clamp-2 mb-1 flex-1">{lesson.title}</h3>
+        </div>
+        {lesson.watched ? (
+          <span className="text-xs text-green-400">Concluída</span>
+        ) : (
+          lesson.description && <p className="text-xs text-text-muted line-clamp-2">{lesson.description}</p>
+        )}
       </div>
     </div>
   )
@@ -344,23 +381,41 @@ function CopyLessonLink({ trainingId, lessonId }: { trainingId: string; lessonId
 
 function VideoModal({
   lesson,
+  moduleLessons,
   onClose,
   onMarkWatched,
+  onUnmarkWatched,
+  onNavigate,
 }: {
   lesson: LessonWithProgress
+  moduleLessons: LessonWithProgress[]
   onClose: () => void
   onMarkWatched: (id: string) => void
+  onUnmarkWatched: (id: string) => void
+  onNavigate: (lesson: LessonWithProgress) => void
 }) {
   const { user } = useAuth()
   const ytId = lesson.youtube_url ? extractYoutubeId(lesson.youtube_url) : null
   const bunnyId = lesson.bunny_video_id
 
-  const [autoWatched, setAutoWatched] = useState(false)
+  const [justMarked, setJustMarked] = useState(false)
   const openTimeRef = useRef(Date.now())
   const viewIdRef = useRef<string | null>(null)
 
+  // Navigation: find prev/next in same module
+  const currentIndex = moduleLessons.findIndex(l => l.id === lesson.id)
+  const prevLesson = currentIndex > 0 ? moduleLessons[currentIndex - 1] : null
+  const nextLesson = currentIndex < moduleLessons.length - 1 ? moduleLessons[currentIndex + 1] : null
+
+  // Reset justMarked when lesson changes
+  useEffect(() => {
+    setJustMarked(false)
+  }, [lesson.id])
+
   // Log view on mount and get the view ID
   useEffect(() => {
+    openTimeRef.current = Date.now()
+    viewIdRef.current = null
     async function logOpen() {
       if (!user) return
       const { data } = await supabase
@@ -372,20 +427,6 @@ function VideoModal({
     }
     logOpen()
   }, [user, lesson.id])
-
-  // Called when video reaches 90%+ or ends
-  const handleVideoComplete = useCallback(() => {
-    if (lesson.watched || autoWatched) return
-    onMarkWatched(lesson.id)
-    setAutoWatched(true)
-  }, [lesson.watched, lesson.id, onMarkWatched, autoWatched])
-
-  // Fade out auto-watched notification after 3 seconds
-  useEffect(() => {
-    if (!autoWatched) return
-    const timeout = setTimeout(() => setAutoWatched(false), 3000)
-    return () => clearTimeout(timeout)
-  }, [autoWatched])
 
   // Close handler: update duration on the view record
   const handleClose = useCallback(async () => {
@@ -399,6 +440,11 @@ function VideoModal({
     onClose()
   }, [onClose])
 
+  function handleMarkCompleted() {
+    onMarkWatched(lesson.id)
+    setJustMarked(true)
+  }
+
   // ESC key handler
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -411,15 +457,27 @@ function VideoModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={handleClose}>
       <div className="w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">{lesson.title}</h2>
-          <button onClick={handleClose} className="text-text-muted hover:text-text-primary">
+          <div className="flex items-center gap-3 min-w-0">
+            {lesson.watched && (
+              <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+            )}
+            <h2 className="text-lg font-semibold text-text-primary truncate">{lesson.title}</h2>
+            {moduleLessons.length > 1 && (
+              <span className="text-xs text-text-muted flex-shrink-0">
+                {currentIndex + 1}/{moduleLessons.length}
+              </span>
+            )}
+          </div>
+          <button onClick={handleClose} className="text-text-muted hover:text-text-primary flex-shrink-0 ml-4">
             <X className="w-6 h-6" />
           </button>
         </div>
 
+        {/* Video */}
         {bunnyId ? (
-          <VideoPlayer videoId={bunnyId} autoplay onVideoComplete={handleVideoComplete} />
+          <VideoPlayer videoId={bunnyId} autoplay />
         ) : ytId ? (
           <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
             <iframe
@@ -436,7 +494,71 @@ function VideoModal({
           </div>
         )}
 
-        <div className="mt-4 space-y-3">
+        {/* Controls bar */}
+        <div className="mt-4 flex items-center justify-between gap-4">
+          {/* Prev button */}
+          <button
+            onClick={() => prevLesson && onNavigate(prevLesson)}
+            disabled={!prevLesson}
+            className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg transition-colors ${
+              prevLesson
+                ? 'bg-bg-card text-text-secondary hover:text-text-primary hover:bg-navy-800'
+                : 'bg-bg-card/50 text-text-muted/30 cursor-not-allowed'
+            }`}
+          >
+            <SkipBack className="w-4 h-4" /> Anterior
+          </button>
+
+          {/* Mark / Unmark as completed */}
+          {lesson.watched ? (
+            <button
+              onClick={() => onUnmarkWatched(lesson.id)}
+              className="flex items-center gap-2 bg-green-600/20 hover:bg-red-600/20 border border-green-500/30 hover:border-red-500/30 text-green-400 hover:text-red-400 text-sm px-5 py-2.5 rounded-lg transition-colors group/btn"
+            >
+              <CheckCircle className="w-4 h-4" />
+              <span className="group-hover/btn:hidden">Aula concluída</span>
+              <span className="hidden group-hover/btn:inline">Desmarcar</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleMarkCompleted}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+            >
+              <CheckCircle className="w-4 h-4" /> Marcar como concluída
+            </button>
+          )}
+
+          {/* Next button */}
+          <button
+            onClick={() => nextLesson && onNavigate(nextLesson)}
+            disabled={!nextLesson}
+            className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg transition-colors ${
+              nextLesson
+                ? 'bg-bg-card text-text-secondary hover:text-text-primary hover:bg-navy-800'
+                : 'bg-bg-card/50 text-text-muted/30 cursor-not-allowed'
+            }`}
+          >
+            Próxima <SkipForward className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Just marked notification + go to next */}
+        {justMarked && nextLesson && (
+          <div className="mt-3 flex items-center justify-between bg-green-600/20 border border-green-500/30 text-green-400 text-sm px-4 py-3 rounded-lg">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" /> Aula concluída!
+            </div>
+            <button
+              onClick={() => onNavigate(nextLesson)}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors"
+            >
+              Ir para próxima aula <SkipForward className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Description and materials */}
+        <div className="mt-3 space-y-3">
           {lesson.description && <p className="text-sm text-text-secondary">{lesson.description}</p>}
           {(lesson as any).material_url && (
             <a
@@ -450,13 +572,6 @@ function VideoModal({
             </a>
           )}
         </div>
-
-        {/* Auto-watched notification */}
-        {autoWatched && (
-          <div className="mt-3 flex items-center gap-2 bg-green-600/20 border border-green-500/30 text-green-400 text-sm px-4 py-2 rounded-lg animate-pulse">
-            <CheckCircle className="w-4 h-4" /> Aula marcada como assistida
-          </div>
-        )}
       </div>
     </div>
   )
