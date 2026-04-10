@@ -383,7 +383,7 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
           <video
             ref={videoRef}
             src={!recording ? page.previewUrl : undefined}
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-cover ${recording ? 'scale-x-[-1]' : ''}`}
             controls={!recording}
             playsInline
             autoPlay={recording}
