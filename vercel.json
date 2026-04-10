@@ -1,5 +1,16 @@
 {
   "rewrites": [
+    {
+      "source": "/p/:postId",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|TelegramBot|Slackbot|Discordbot|Pinterest|redditbot|Applebot|SkypeUriPreview|vkShare|W3C_Validator|Embedly|quora link preview|outbrain|nuzzel|Bingbot|Googlebot|YandexBot|DuckDuckBot|Baiduspider|Iframely).*"
+        }
+      ],
+      "destination": "/api/og/:postId"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
