@@ -80,6 +80,27 @@ export function PostCard({ post }: Props) {
     return () => observer.disconnect()
   }, [currentPage, post.pages])
 
+  // Feed query key (must match FeedPage)
+  const feedKey = ['feed-posts', user?.id]
+
+  // Helper: update a single post in the infinite query cache
+  function updatePostInCache(updater: (p: any) => any) {
+    queryClient.setQueryData<any>(feedKey, (old: any) => {
+      if (!old) return old
+      // Handles both InfiniteQuery shape and plain array (defensive)
+      if (old.pages) {
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            posts: page.posts.map((p: any) => (p.id === post.id ? updater(p) : p)),
+          })),
+        }
+      }
+      return (old || []).map((p: any) => (p.id === post.id ? updater(p) : p))
+    })
+  }
+
   // Toggle like (optimistic)
   const toggleLike = useMutation({
     mutationFn: async () => {
@@ -90,19 +111,17 @@ export function PostCard({ post }: Props) {
       }
     },
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['feed-posts'] })
-      const prev = queryClient.getQueryData(['feed-posts'])
-      queryClient.setQueryData(['feed-posts'], (old: any) =>
-        (old || []).map((p: any) =>
-          p.id === post.id
-            ? { ...p, likedByMe: !p.likedByMe, likesCount: p.likesCount + (p.likedByMe ? -1 : 1) }
-            : p
-        )
-      )
+      await queryClient.cancelQueries({ queryKey: feedKey })
+      const prev = queryClient.getQueryData(feedKey)
+      updatePostInCache((p: any) => ({
+        ...p,
+        likedByMe: !p.likedByMe,
+        likesCount: p.likesCount + (p.likedByMe ? -1 : 1),
+      }))
       return { prev }
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(['feed-posts'], ctx.prev)
+      if (ctx?.prev) queryClient.setQueryData(feedKey, ctx.prev)
     },
   })
 
@@ -123,37 +142,32 @@ export function PostCard({ post }: Props) {
       return data
     },
     onMutate: async (text) => {
-      await queryClient.cancelQueries({ queryKey: ['feed-posts'] })
-      const prev = queryClient.getQueryData(['feed-posts'])
+      await queryClient.cancelQueries({ queryKey: feedKey })
+      const prev = queryClient.getQueryData(feedKey)
       const tempId = `temp-${Date.now()}`
-      queryClient.setQueryData(['feed-posts'], (old: any) =>
-        (old || []).map((p: any) =>
-          p.id === post.id
-            ? {
-              ...p,
-              comments: [...p.comments, {
-                id: tempId,
-                post_id: post.id,
-                user_id: user!.id,
-                text,
-                parent_id: replyTo?.id || null,
-                created_at: new Date().toISOString(),
-                author: { name: 'Você', avatar_url: null },
-                likesCount: 0,
-                likedByMe: false,
-              }],
-              commentsCount: p.commentsCount + 1,
-            }
-            : p
-        )
-      )
+      const currentProfile = queryClient.getQueryData<any>(['profile', user?.id])
+      updatePostInCache((p: any) => ({
+        ...p,
+        comments: [...(p.comments || []), {
+          id: tempId,
+          post_id: post.id,
+          user_id: user!.id,
+          text,
+          parent_id: replyTo?.id || null,
+          created_at: new Date().toISOString(),
+          author: {
+            name: currentProfile?.name || 'Você',
+            avatar_url: currentProfile?.avatar_url || null,
+          },
+          likesCount: 0,
+          likedByMe: false,
+        }],
+        commentsCount: (p.commentsCount || 0) + 1,
+      }))
       return { prev }
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(['feed-posts'], ctx.prev)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['feed-posts'] })
+      if (ctx?.prev) queryClient.setQueryData(feedKey, ctx.prev)
     },
   })
 
@@ -167,56 +181,68 @@ export function PostCard({ post }: Props) {
       }
     },
     onMutate: async ({ commentId }) => {
-      await queryClient.cancelQueries({ queryKey: ['feed-posts'] })
-      const prev = queryClient.getQueryData(['feed-posts'])
-      queryClient.setQueryData(['feed-posts'], (old: any) =>
-        (old || []).map((p: any) =>
-          p.id === post.id
-            ? {
-              ...p,
-              comments: p.comments.map((c: any) =>
-                c.id === commentId
-                  ? { ...c, likedByMe: !c.likedByMe, likesCount: c.likesCount + (c.likedByMe ? -1 : 1) }
-                  : c
-              ),
-            }
-            : p
-        )
-      )
+      await queryClient.cancelQueries({ queryKey: feedKey })
+      const prev = queryClient.getQueryData(feedKey)
+      updatePostInCache((p: any) => ({
+        ...p,
+        comments: (p.comments || []).map((c: any) =>
+          c.id === commentId
+            ? { ...c, likedByMe: !c.likedByMe, likesCount: c.likesCount + (c.likedByMe ? -1 : 1) }
+            : c
+        ),
+      }))
       return { prev }
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(['feed-posts'], ctx.prev)
+      if (ctx?.prev) queryClient.setQueryData(feedKey, ctx.prev)
     },
   })
 
-  // Delete post
+  // Delete post (optimistic)
   const deletePost = useMutation({
     mutationFn: async () => {
       await supabase.from('posts').delete().eq('id', post.id)
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feed-posts'] }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: feedKey })
+      const prev = queryClient.getQueryData(feedKey)
+      queryClient.setQueryData<any>(feedKey, (old: any) => {
+        if (!old) return old
+        if (old.pages) {
+          return {
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              posts: page.posts.filter((p: any) => p.id !== post.id),
+            })),
+          }
+        }
+        return (old || []).filter((p: any) => p.id !== post.id)
+      })
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(feedKey, ctx.prev)
+    },
   })
 
-  // Delete comment
+  // Delete comment (optimistic)
   const deleteComment = useMutation({
     mutationFn: async (commentId: string) => {
       await supabase.from('post_comments').delete().eq('id', commentId)
     },
     onMutate: async (commentId) => {
-      await queryClient.cancelQueries({ queryKey: ['feed-posts'] })
-      const prev = queryClient.getQueryData(['feed-posts'])
-      queryClient.setQueryData(['feed-posts'], (old: any) =>
-        (old || []).map((p: any) =>
-          p.id === post.id
-            ? { ...p, comments: p.comments.filter((c: any) => c.id !== commentId), commentsCount: p.commentsCount - 1 }
-            : p
-        )
-      )
+      await queryClient.cancelQueries({ queryKey: feedKey })
+      const prev = queryClient.getQueryData(feedKey)
+      updatePostInCache((p: any) => ({
+        ...p,
+        comments: (p.comments || []).filter((c: any) => c.id !== commentId),
+        commentsCount: Math.max(0, (p.commentsCount || 0) - 1),
+      }))
       return { prev }
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(['feed-posts'], ctx.prev)
+      if (ctx?.prev) queryClient.setQueryData(feedKey, ctx.prev)
     },
   })
 
