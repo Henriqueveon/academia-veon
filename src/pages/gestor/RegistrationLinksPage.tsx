@@ -10,6 +10,7 @@ export function RegistrationLinksPage() {
   const [showForm, setShowForm] = useState(false)
   const [description, setDescription] = useState('')
   const [selectedGroupId, setSelectedGroupId] = useState('')
+  const [selectedTrainingIds, setSelectedTrainingIds] = useState<string[]>([])
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
 
   const { data: links = [], isLoading } = useQuery({
@@ -76,7 +77,8 @@ export function RegistrationLinksPage() {
       const slug = generateSlug()
       const { error } = await supabase.from('registration_links').insert({
         slug,
-        group_id: selectedGroupId,
+        group_id: selectedGroupId || null,
+        training_ids: selectedTrainingIds.length > 0 ? selectedTrainingIds : null,
         description: description || null,
         created_by: user?.id,
       })
@@ -87,6 +89,7 @@ export function RegistrationLinksPage() {
       setShowForm(false)
       setDescription('')
       setSelectedGroupId('')
+      setSelectedTrainingIds([])
     },
   })
 
@@ -127,7 +130,7 @@ export function RegistrationLinksPage() {
           <p className="text-text-secondary mt-2">Crie links para autocadastro de tripulantes.</p>
         </div>
         <button
-          onClick={() => { setShowForm(true); setDescription(''); setSelectedGroupId('') }}
+          onClick={() => { setShowForm(true); setDescription(''); setSelectedGroupId(''); setSelectedTrainingIds([]) }}
           className="flex items-center gap-2 bg-red-veon hover:bg-red-veon-dark text-white px-4 py-2 rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" /> Novo Link
@@ -151,19 +154,19 @@ export function RegistrationLinksPage() {
             </div>
 
             <div>
-              <label className="block text-sm text-text-secondary mb-1">Turma *</label>
+              <label className="block text-sm text-text-secondary mb-1">Turma (opcional)</label>
               <select
                 value={selectedGroupId}
                 onChange={(e) => setSelectedGroupId(e.target.value)}
                 className="w-full bg-bg-input border border-navy-700 rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-red-veon"
               >
-                <option value="">Selecione a turma...</option>
+                <option value="">Sem turma</option>
                 {groups.map((g: any) => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
               </select>
               <p className="text-xs text-text-muted mt-1">
-                Ao se cadastrar, o tripulante será adicionado a esta turma automaticamente.
+                Se selecionada, o tripulante será adicionado a esta turma automaticamente.
               </p>
             </div>
 
@@ -171,7 +174,7 @@ export function RegistrationLinksPage() {
             {selectedGroupId && (
               <div className="bg-bg-secondary border border-navy-700 rounded-lg p-4">
                 <p className="text-sm text-text-secondary mb-2 flex items-center gap-2">
-                  <BookOpen className="w-4 h-4" />
+                  <Users className="w-4 h-4" />
                   Treinamentos que esta turma tem acesso:
                 </p>
                 {selectedGroupTrainings.length > 0 ? (
@@ -184,11 +187,46 @@ export function RegistrationLinksPage() {
                   </div>
                 ) : (
                   <p className="text-xs text-text-muted">
-                    Nenhum treinamento liberado para esta turma. Configure em Liberações.
+                    Nenhum treinamento liberado para esta turma.
                   </p>
                 )}
               </div>
             )}
+
+            {/* Direct training access */}
+            <div>
+              <label className="block text-sm text-text-secondary mb-2 flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                Liberar treinamentos diretamente
+              </label>
+              <div className="bg-bg-input border border-navy-700 rounded-lg p-3 space-y-1 max-h-60 overflow-y-auto">
+                {trainings.map((t: any) => {
+                  const isSelected = selectedTrainingIds.includes(t.id)
+                  const alreadyViaGroup = selectedGroupId && selectedGroupTrainings.some((gt: any) => gt.id === t.id)
+                  return (
+                    <label key={t.id} className="flex items-center gap-3 cursor-pointer hover:bg-bg-card-hover p-2 rounded-lg">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {
+                          setSelectedTrainingIds(prev =>
+                            isSelected ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                          )
+                        }}
+                        className="w-4 h-4 rounded accent-red-veon"
+                      />
+                      <span className="text-sm text-text-primary flex-1">{t.title}</span>
+                      {alreadyViaGroup && (
+                        <span className="text-xs text-text-muted">(já via turma)</span>
+                      )}
+                    </label>
+                  )
+                })}
+              </div>
+              <p className="text-xs text-text-muted mt-1">
+                O tripulante terá acesso direto a estes treinamentos, sem depender de turma.
+              </p>
+            </div>
           </div>
 
           {createMutation.isError && (
@@ -198,7 +236,7 @@ export function RegistrationLinksPage() {
           <div className="flex gap-3 mt-5">
             <button
               onClick={() => createMutation.mutate()}
-              disabled={!selectedGroupId || createMutation.isPending}
+              disabled={(!selectedGroupId && selectedTrainingIds.length === 0) || createMutation.isPending}
               className="bg-red-veon hover:bg-red-veon-dark text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50"
             >
               {createMutation.isPending ? 'Criando...' : 'Criar Link'}
@@ -227,7 +265,10 @@ export function RegistrationLinksPage() {
       ) : (
         <div className="space-y-4">
           {links.map((link: any) => {
-            const groupTrainings = getTrainingsForGroup(link.group_id)
+            const groupTrainings = link.group_id ? getTrainingsForGroup(link.group_id) : []
+            const directTrainings = (link.training_ids || [])
+              .map((tid: string) => trainings.find((t: any) => t.id === tid))
+              .filter(Boolean)
             const isCopied = copiedSlug === link.slug
 
             return (
@@ -268,20 +309,25 @@ export function RegistrationLinksPage() {
 
                     {/* Group & trainings info */}
                     <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5" />
-                        Turma: <span className="text-text-secondary">{getGroupName(link.group_id)}</span>
-                      </span>
-                      {groupTrainings.length > 0 && (
+                      {link.group_id && (
                         <span className="flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5" />
+                          Turma: <span className="text-text-secondary">{getGroupName(link.group_id)}</span>
+                        </span>
+                      )}
+                      {directTrainings.length > 0 && (
+                        <span className="flex items-center gap-1 flex-wrap">
                           <BookOpen className="w-3.5 h-3.5" />
-                          Acesso:
-                          {groupTrainings.map((t: any) => (
-                            <span key={t.id} className="bg-navy-800 px-1.5 py-0.5 rounded text-text-muted">
+                          Acesso direto:
+                          {directTrainings.map((t: any) => (
+                            <span key={t.id} className="bg-green-900/30 text-green-400 border border-green-800 px-1.5 py-0.5 rounded">
                               {t.title}
                             </span>
                           ))}
                         </span>
+                      )}
+                      {!link.group_id && directTrainings.length === 0 && (
+                        <span className="text-yellow-400">Sem turma nem treinamentos configurados</span>
                       )}
                     </div>
                   </div>

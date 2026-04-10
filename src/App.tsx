@@ -14,6 +14,7 @@ import { GroupsPage } from './pages/gestor/GroupsPage'
 import { AccessPage } from './pages/gestor/AccessPage'
 import { EngagementPage } from './pages/gestor/EngagementPage'
 import { RegistrationLinksPage } from './pages/gestor/RegistrationLinksPage'
+import { DashboardPage } from './pages/gestor/DashboardPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,6 +37,7 @@ function App() {
               <Route path="/treinamentos" element={<TrainingListPage />} />
               <Route path="/treinamentos/:id" element={<TrainingPage />} />
               <Route element={<GestorGuard />}>
+                <Route path="/gestor" element={<DashboardPage />} />
                 <Route path="/gestor/treinamentos" element={<TrainingsPage />} />
                 <Route path="/gestor/treinamentos/:id" element={<TrainingDetailPage />} />
                 <Route path="/gestor/tripulantes" element={<CrewPage />} />

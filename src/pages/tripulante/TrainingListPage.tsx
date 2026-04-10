@@ -18,23 +18,34 @@ export function TrainingListPage() {
     enabled: !!user,
   })
 
-  // Get user's groups and training_groups to determine actual access
+  // Get user's groups and training_groups + direct access to determine actual access
   const { data: accessibleTrainingIds = new Set<string>() } = useQuery({
     queryKey: ['tripulante-access', user?.id],
     queryFn: async () => {
+      const ids = new Set<string>()
+
+      // Group-based access
       const { data: userGroups } = await supabase
         .from('user_groups')
         .select('group_id')
         .eq('user_id', user!.id)
-      if (!userGroups?.length) return new Set<string>()
+      if (userGroups?.length) {
+        const groupIds = userGroups.map((ug: any) => ug.group_id)
+        const { data: tg } = await supabase
+          .from('training_groups')
+          .select('training_id')
+          .in('group_id', groupIds)
+        ;(tg || []).forEach((t: any) => ids.add(t.training_id))
+      }
 
-      const groupIds = userGroups.map((ug: any) => ug.group_id)
-      const { data: tg } = await supabase
-        .from('training_groups')
+      // Direct access
+      const { data: ut } = await supabase
+        .from('user_trainings')
         .select('training_id')
-        .in('group_id', groupIds)
+        .eq('user_id', user!.id)
+      ;(ut || []).forEach((t: any) => ids.add(t.training_id))
 
-      return new Set<string>((tg || []).map((t: any) => t.training_id))
+      return ids
     },
     enabled: !!user,
   })

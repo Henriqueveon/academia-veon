@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { GraduationCap, LogOut, Settings, Users, BookOpen, Layers, Shield, BarChart3, Link2 } from 'lucide-react'
+import { GraduationCap, LogOut, Settings, Users, BookOpen, Layers, Shield, BarChart3, Link2, LayoutDashboard } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 interface SidebarProps {
@@ -18,6 +18,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   ]
 
   const gestorLinks = [
+    { path: '/gestor', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/gestor/treinamentos', label: 'Treinamentos', icon: Layers },
     { path: '/gestor/tripulantes', label: 'Tripulantes', icon: Users },
     { path: '/gestor/turmas', label: 'Turmas', icon: Shield },
@@ -66,7 +67,9 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           )}
           {links.map((link) => {
             const Icon = link.icon
-            const isActive = location.pathname === link.path || location.pathname.startsWith(link.path + '/')
+            const isActive = link.path === '/gestor'
+              ? location.pathname === '/gestor'
+              : location.pathname === link.path || location.pathname.startsWith(link.path + '/')
             return (
               <button
                 key={link.path}

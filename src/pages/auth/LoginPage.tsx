@@ -23,7 +23,9 @@ export function LoginPage() {
   }
 
   if (user && profile) {
-    return <Navigate to={returnTo} replace />
+    const defaultRoute = profile.role === 'gestor' ? '/gestor' : '/treinamentos'
+    const destination = searchParams.get('returnTo') ? returnTo : defaultRoute
+    return <Navigate to={destination} replace />
   }
 
   async function handleSubmit(e: React.FormEvent) {
