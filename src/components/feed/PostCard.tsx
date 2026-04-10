@@ -250,6 +250,7 @@ export function PostCard({ post }: Props) {
   }, {})
 
   const currentPageData = post.pages[currentPage]
+  const isAudioOnly = post.pages.length > 0 && post.pages.every((p: any) => p.type === 'audio')
 
   return (
     <div className="bg-bg-card border border-navy-800 rounded-2xl overflow-hidden">
@@ -318,7 +319,7 @@ export function PostCard({ post }: Props) {
       </div>
 
       {/* Carousel */}
-      <div className="relative aspect-[4/5] bg-navy-900">
+      <div className={`relative bg-navy-900 ${isAudioOnly ? 'px-4 py-3' : 'aspect-[4/5]'}`}>
         {/* Uploading overlay */}
         {post._uploading && (
           <div className="absolute inset-0 bg-black/60 z-20 flex flex-col items-center justify-center text-white">
@@ -588,6 +589,7 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string }>(({ src }, ref) =
 
 function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const progressRef = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [audioDuration, setAudioDuration] = useState(duration || 0)
@@ -600,26 +602,69 @@ function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
   }
 
   function format(s: number) {
+    if (!isFinite(s)) return '0:00'
     return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`
   }
 
+  function handleSeek(e: React.MouseEvent<HTMLDivElement>) {
+    if (!audioRef.current || !progressRef.current || audioDuration === 0) return
+    const rect = progressRef.current.getBoundingClientRect()
+    const ratio = (e.clientX - rect.left) / rect.width
+    audioRef.current.currentTime = audioDuration * ratio
+  }
+
+  // Static waveform pattern (pseudo-random heights for visual effect)
+  const waveBars = Array.from({ length: 32 }, (_, i) => {
+    const seed = (i * 7919) % 100
+    return 30 + (seed % 70)
+  })
+
+  const progressPct = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0
+
   return (
-    <div className="w-full h-full bg-gradient-to-br from-green-900/50 to-navy-900 flex flex-col items-center justify-center p-8">
+    <div className="w-full bg-gradient-to-r from-navy-900 to-bg-card border border-navy-700 rounded-2xl p-3 flex items-center gap-3">
+      {/* Play button */}
       <button
         onClick={toggle}
-        className="w-24 h-24 rounded-full bg-green-600 hover:bg-green-700 flex items-center justify-center mb-6 transition-colors shadow-xl"
+        className="w-11 h-11 rounded-full bg-green-600 hover:bg-green-700 flex items-center justify-center transition-colors flex-shrink-0 shadow-md"
       >
-        {playing ? <Pause className="w-12 h-12 text-white" /> : <Play className="w-12 h-12 text-white ml-1" />}
+        {playing ? (
+          <Pause className="w-5 h-5 text-white" />
+        ) : (
+          <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
+        )}
       </button>
-      <Mic className="w-6 h-6 text-text-muted mb-2" />
-      <p className="text-text-primary font-mono text-lg">
-        {format(currentTime)} / {format(audioDuration)}
-      </p>
-      {audioDuration > 0 && (
-        <div className="w-full max-w-xs h-1.5 bg-navy-800 rounded-full mt-3 overflow-hidden">
-          <div className="h-full bg-green-500 transition-all" style={{ width: `${(currentTime / audioDuration) * 100}%` }} />
+
+      {/* Waveform + time */}
+      <div className="flex-1 min-w-0">
+        <div
+          ref={progressRef}
+          onClick={handleSeek}
+          className="flex items-center gap-[2px] h-8 cursor-pointer"
+        >
+          {waveBars.map((height, i) => {
+            const barProgress = (i / waveBars.length) * 100
+            const filled = barProgress <= progressPct
+            return (
+              <div
+                key={i}
+                className={`flex-1 rounded-full transition-colors ${
+                  filled ? 'bg-green-400' : 'bg-text-muted/40'
+                }`}
+                style={{ height: `${height}%` }}
+              />
+            )
+          })}
         </div>
-      )}
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-xs text-text-muted font-mono">{format(currentTime)}</span>
+          <div className="flex items-center gap-1">
+            <Mic className="w-3 h-3 text-green-400" />
+            <span className="text-xs text-text-muted font-mono">{format(audioDuration)}</span>
+          </div>
+        </div>
+      </div>
+
       <audio
         ref={audioRef}
         src={src}
