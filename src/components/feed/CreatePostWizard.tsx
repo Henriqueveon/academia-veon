@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useMediaUpload, getLastUploadError } from '../../hooks/useMediaUpload'
+import { generateVideoThumbnail } from '../../lib/videoThumbnail'
 import { useQueryClient } from '@tanstack/react-query'
 import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause } from 'lucide-react'
 
@@ -123,11 +124,28 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
 
     // Upload + insert in background — user already sees the post
     try {
-      // Upload all media in parallel
-      const urls = await Promise.all(pages.map(async (p) => {
+      // For each page, upload the main media. For videos, also generate
+      // and upload a thumbnail in parallel so the player can show a poster.
+      const uploadResults = await Promise.all(pages.map(async (p) => {
         const ext = p.type === 'image' ? 'jpg' : p.type === 'video' ? 'webm' : 'webm'
-        return await uploadMedia(p.file!, `posts/${p.type}`, ext)
+
+        if (p.type === 'video') {
+          // Generate thumbnail (best effort, doesn't block on failure)
+          const thumbBlob = await generateVideoThumbnail(p.file!).catch(() => null)
+
+          // Upload video and thumbnail in parallel
+          const [videoUrl, thumbUrl] = await Promise.all([
+            uploadMedia(p.file!, `posts/${p.type}`, ext),
+            thumbBlob ? uploadMedia(thumbBlob, 'posts/thumbnails', 'jpg') : Promise.resolve(null),
+          ])
+          return { url: videoUrl, thumbnail: thumbUrl }
+        }
+
+        const url = await uploadMedia(p.file!, `posts/${p.type}`, ext)
+        return { url, thumbnail: null }
       }))
+
+      const urls = uploadResults.map(r => r.url)
 
       if (urls.some(u => !u)) {
         const detail = getLastUploadError() || 'erro desconhecido'
@@ -146,6 +164,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         post_id: post.id,
         type: p.type,
         image_url: urls[i]!,
+        thumbnail_url: uploadResults[i].thumbnail || null,
         sort_order: i,
         duration_seconds: p.duration || null,
       }))

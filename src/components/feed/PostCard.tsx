@@ -369,6 +369,7 @@ export function PostCard({ post }: Props) {
                 ref={videoRef}
                 key={currentPageData.id}
                 src={currentPageData.image_url}
+                poster={currentPageData.thumbnail_url || undefined}
               />
             )}
             {currentPageData.type === 'audio' && currentPageData.image_url && (
@@ -519,7 +520,7 @@ export function PostCard({ post }: Props) {
   )
 }
 
-const FeedVideo = forwardRef<HTMLVideoElement, { src: string }>(({ src }, ref) => {
+const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string }>(({ src, poster }, ref) => {
   const localRef = useRef<HTMLVideoElement>(null)
   // Sync external ref
   useEffect(() => {
@@ -578,11 +579,12 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string }>(({ src }, ref) =
       <video
         ref={localRef}
         src={src}
-        className="w-full h-full object-cover"
+        poster={poster}
+        className="w-full h-full object-cover bg-navy-900"
         playsInline
         muted={muted}
         loop
-        preload="metadata"
+        preload="auto"
         onClick={handleVideoClick}
         onTimeUpdate={(e) => {
           const v = e.currentTarget
