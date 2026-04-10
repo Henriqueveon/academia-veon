@@ -296,6 +296,7 @@ function ImageInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
 function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<PageData>) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [cameraOn, setCameraOn] = useState(false)
   const [recording, setRecording] = useState(false)
   const [recordTime, setRecordTime] = useState(0)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -303,53 +304,66 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<number | null>(null)
 
-  // Attach stream to video element after recording state is set (so element exists in DOM)
+  // Attach stream to video element when camera turns on
   useEffect(() => {
-    if (recording && videoRef.current && streamRef.current) {
+    if (cameraOn && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current
       videoRef.current.muted = true
       videoRef.current.play().catch((err) => console.warn('Preview play failed:', err))
     }
-  }, [recording])
+  }, [cameraOn])
 
-  async function startRecording() {
+  async function openCamera() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
         audio: true,
       })
       streamRef.current = stream
-
-      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' })
-      mediaRecorderRef.current = recorder
-      chunksRef.current = []
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' })
-        const url = URL.createObjectURL(blob)
-        onChange({ file: blob, previewUrl: url, duration: recordTime })
-        stream.getTracks().forEach(t => t.stop())
-        if (videoRef.current) {
-          videoRef.current.srcObject = null
-          videoRef.current.src = url
-          videoRef.current.muted = false
-        }
-      }
-      recorder.start()
-      setRecording(true)
-      setRecordTime(0)
-      timerRef.current = window.setInterval(() => {
-        setRecordTime(t => {
-          if (t + 1 >= MAX_VIDEO_SECONDS) {
-            stopRecording()
-            return MAX_VIDEO_SECONDS
-          }
-          return t + 1
-        })
-      }, 1000)
+      setCameraOn(true)
     } catch (err) {
       alert('Não foi possível acessar a câmera')
     }
+  }
+
+  function closeCamera() {
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+    setCameraOn(false)
+  }
+
+  function startRecording() {
+    if (!streamRef.current) return
+    const recorder = new MediaRecorder(streamRef.current, { mimeType: 'video/webm' })
+    mediaRecorderRef.current = recorder
+    chunksRef.current = []
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+    recorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: 'video/webm' })
+      const url = URL.createObjectURL(blob)
+      onChange({ file: blob, previewUrl: url, duration: recordTime })
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+      if (videoRef.current) {
+        videoRef.current.srcObject = null
+        videoRef.current.src = url
+        videoRef.current.muted = false
+        videoRef.current.style.transform = ''
+      }
+      setCameraOn(false)
+    }
+    recorder.start()
+    setRecording(true)
+    setRecordTime(0)
+    timerRef.current = window.setInterval(() => {
+      setRecordTime(t => {
+        if (t + 1 >= MAX_VIDEO_SECONDS) {
+          stopRecording()
+          return MAX_VIDEO_SECONDS
+        }
+        return t + 1
+      })
+    }, 1000)
   }
 
   function stopRecording() {
@@ -376,19 +390,21 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
     onChange({ file: undefined, previewUrl: undefined, duration: undefined })
   }
 
+  const showCameraView = cameraOn || recording
+
   return (
     <div className="space-y-3">
       <div className="aspect-[4/5] rounded-xl bg-black overflow-hidden flex items-center justify-center relative">
-        {(recording || page.previewUrl) ? (
+        {(showCameraView || page.previewUrl) ? (
           <video
             ref={videoRef}
-            src={!recording ? page.previewUrl : undefined}
+            src={!showCameraView ? page.previewUrl : undefined}
             className="w-full h-full object-cover"
-            style={recording ? { transform: 'scaleX(-1)' } : undefined}
-            controls={!recording}
+            style={showCameraView ? { transform: 'scaleX(-1)' } : undefined}
+            controls={!showCameraView}
             playsInline
-            autoPlay={recording}
-            muted={recording}
+            autoPlay={showCameraView}
+            muted={showCameraView}
           />
         ) : (
           <div className="text-text-muted text-center">
@@ -397,29 +413,58 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
             <p className="text-xs">Máx. 2min30</p>
           </div>
         )}
+
+        {/* REC indicator */}
         {recording && (
-          <div className="absolute top-3 left-3 bg-red-veon text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5">
+          <div className="absolute top-3 left-3 bg-red-veon text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 z-10">
             <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
             REC {Math.floor(recordTime / 60)}:{(recordTime % 60).toString().padStart(2, '0')}
           </div>
         )}
+
+        {/* Close camera button (when in preview, before recording) */}
+        {cameraOn && !recording && (
+          <button
+            onClick={closeCamera}
+            className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full z-10"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Big record button overlay */}
+        {cameraOn && !recording && (
+          <button
+            onClick={startRecording}
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-white border-4 border-white/40 flex items-center justify-center shadow-2xl hover:scale-105 transition-transform z-10"
+            title="Iniciar gravação"
+          >
+            <div className="w-12 h-12 rounded-full bg-red-veon" />
+          </button>
+        )}
+
+        {/* Stop button overlay */}
+        {recording && (
+          <button
+            onClick={stopRecording}
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-white border-4 border-white/40 flex items-center justify-center shadow-2xl hover:scale-105 transition-transform z-10"
+            title="Parar gravação"
+          >
+            <div className="w-7 h-7 rounded bg-red-veon" />
+          </button>
+        )}
       </div>
 
       <div className="flex gap-2">
-        {!page.previewUrl && !recording && (
+        {!page.previewUrl && !cameraOn && !recording && (
           <>
-            <button onClick={startRecording} className="flex-1 flex items-center justify-center gap-2 bg-red-veon hover:bg-red-veon-dark text-white text-sm py-2.5 rounded-lg">
-              <Video className="w-4 h-4" /> Gravar
+            <button onClick={openCamera} className="flex-1 flex items-center justify-center gap-2 bg-red-veon hover:bg-red-veon-dark text-white text-sm py-2.5 rounded-lg">
+              <Video className="w-4 h-4" /> Abrir câmera
             </button>
             <button onClick={() => fileRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 bg-navy-800 hover:bg-navy-700 text-text-secondary hover:text-text-primary text-sm py-2.5 rounded-lg">
               Enviar vídeo
             </button>
           </>
-        )}
-        {recording && (
-          <button onClick={stopRecording} className="w-full flex items-center justify-center gap-2 bg-red-veon hover:bg-red-veon-dark text-white text-sm py-2.5 rounded-lg">
-            <Square className="w-4 h-4" /> Parar gravação
-          </button>
         )}
         {page.previewUrl && !recording && (
           <button onClick={reset} className="text-xs text-red-veon hover:text-red-veon-dark">Refazer</button>
