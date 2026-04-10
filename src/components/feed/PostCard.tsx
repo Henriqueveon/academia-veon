@@ -587,7 +587,7 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string }>(({ src }, ref) =
   )
 })
 
-const PLAYBACK_RATES = [1, 1.25, 1.5, 2]
+const PLAYBACK_RATES = [1, 1.25, 1.5]
 
 function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
   const audioRef = useRef<HTMLAudioElement>(null)
