@@ -18,7 +18,7 @@ export function ShareMenu({ post, onClose }: Props) {
   const [sent, setSent] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
 
-  const publicUrl = `${window.location.origin}/p/${post.id}`
+  const publicUrl = `${window.location.origin}/p/${post.id}${user ? `?ref=${user.id}` : ''}`
 
   // Copy link on mount
   useState(() => {

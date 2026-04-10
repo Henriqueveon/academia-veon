@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { GraduationCap, User, ChevronLeft, ChevronRight, Lock, Mic, Play } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
@@ -9,7 +9,16 @@ const PREVIEW_SECONDS = 15
 export function PublicPostPage() {
   const { postId } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user } = useAuth()
+
+  // Save ref to localStorage for later use during signup
+  useEffect(() => {
+    const ref = searchParams.get('ref')
+    if (ref) {
+      localStorage.setItem('referral_id', ref)
+    }
+  }, [searchParams])
 
   const [post, setPost] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -64,8 +73,8 @@ export function PublicPostPage() {
   }, [user, currentPage])
 
   function handleCTAClick() {
-    // Save return URL and go to login
-    navigate(`/login?returnTo=${encodeURIComponent(`/p/${postId}`)}`)
+    // Go to viral signup page
+    navigate('/cadastro')
   }
 
   if (loading) {

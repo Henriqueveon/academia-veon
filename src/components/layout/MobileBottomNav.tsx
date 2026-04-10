@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   MessagesSquare, BookOpen, UserCircle, LayoutDashboard, Menu, X, LogOut,
-  Users, Shield, BarChart3, Settings, Link2, Layers
+  Users, Shield, BarChart3, Settings, Link2, Layers, Wallet
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -139,6 +139,23 @@ export function MobileBottomNav() {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Tripulante extras */}
+            {!isGestor && (
+              <div className="p-3">
+                <button
+                  onClick={() => handleNavigate('/creditos')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors ${
+                    location.pathname === '/creditos'
+                      ? 'bg-navy-900 text-red-veon'
+                      : 'text-text-secondary hover:bg-bg-card hover:text-text-primary'
+                  }`}
+                >
+                  <Wallet className="w-5 h-5" />
+                  Meus Créditos
+                </button>
+              </div>
+            )}
 
             {/* Extra links (gestor) */}
             {isGestor && (

@@ -6,6 +6,8 @@ import { GestorGuard } from './components/layout/GestorGuard'
 import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/public/RegisterPage'
 import { PublicPostPage } from './pages/public/PublicPostPage'
+import { ViralSignupPage } from './pages/public/ViralSignupPage'
+import { CreditsPage } from './pages/tripulante/CreditsPage'
 import { TrainingListPage } from './pages/tripulante/TrainingListPage'
 import { TrainingPage } from './pages/tripulante/TrainingPage'
 import { TrainingsPage } from './pages/gestor/TrainingsPage'
@@ -37,6 +39,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/cadastro" element={<ViralSignupPage />} />
             <Route path="/cadastro/:slug" element={<RegisterPage />} />
             <Route path="/p/:postId" element={<PublicPostPage />} />
             <Route element={<AppLayout />}>
@@ -44,6 +47,7 @@ function App() {
               <Route path="/treinamentos/:id" element={<TrainingPage />} />
               <Route path="/perfil" element={<ProfilePage />} />
               <Route path="/perfil/:userId" element={<ProfilePage />} />
+              <Route path="/creditos" element={<CreditsPage />} />
               <Route path="/comunidade" element={<FeedPage />} />
               <Route element={<GestorGuard />}>
                 <Route path="/gestor" element={<DashboardPage />} />

@@ -1,12 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { BookOpen, ChevronRight, Lock, Users, PlayCircle } from 'lucide-react'
+import { BookOpen, ChevronRight, Lock, Users, PlayCircle, Heart, Check } from 'lucide-react'
 
 export function TrainingListPage() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   // RLS returns: trainings with access + trainings with visibility='vitrine'
   const { data: allTrainings = [], isLoading } = useQuery({
@@ -50,9 +51,32 @@ export function TrainingListPage() {
     enabled: !!user,
   })
 
-  // Split into accessible and vitrine-only
+  // Split into accessible and locked (all trainings without access show as locked)
   const trainings = allTrainings.filter((t: any) => accessibleTrainingIds.has(t.id))
-  const vitrineTrainings = allTrainings.filter((t: any) => !accessibleTrainingIds.has(t.id) && t.visibility === 'vitrine')
+  const lockedTrainings = allTrainings.filter((t: any) => !accessibleTrainingIds.has(t.id))
+
+  // Existing interests
+  const { data: myInterests = [] } = useQuery({
+    queryKey: ['my-interests', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('training_interests').select('training_id').eq('user_id', user!.id)
+      return (data || []).map((i: any) => i.training_id)
+    },
+    enabled: !!user,
+  })
+
+  const interestMutation = useMutation({
+    mutationFn: async (trainingId: string) => {
+      const { error } = await supabase.from('training_interests').insert({
+        user_id: user!.id,
+        training_id: trainingId,
+      })
+      if (error && !error.message.includes('duplicate')) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-interests'] })
+    },
+  })
 
   // Count lessons per training (for vitrine display)
   const { data: lessonCounts = {} } = useQuery({
@@ -142,7 +166,7 @@ export function TrainingListPage() {
 
       <h1 className="text-2xl font-bold mb-8">Treinamentos</h1>
 
-      {trainings.length === 0 && vitrineTrainings.length === 0 ? (
+      {trainings.length === 0 && lockedTrainings.length === 0 ? (
         <div className="text-center py-20 text-text-muted">
           <p className="text-lg">Nenhum treinamento disponível ainda.</p>
           <p className="text-sm mt-2">Aguarde a liberação do seu gestor.</p>
@@ -197,19 +221,20 @@ export function TrainingListPage() {
             </div>
           )}
 
-          {/* Vitrine trainings (locked) */}
-          {vitrineTrainings.length > 0 && (
+          {/* Locked trainings */}
+          {lockedTrainings.length > 0 && (
             <>
               <h2 className="text-xl font-bold mt-12 mb-6">Outros Treinamentos</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {vitrineTrainings.map((t: any) => {
+                {lockedTrainings.map((t: any) => {
                   const lessonCount = (lessonCounts as any)[t.id] || 0
                   const studentCount = t.fake_students_count ?? null
+                  const alreadyInterested = myInterests.includes(t.id)
 
                   return (
                     <div
                       key={t.id}
-                      className="bg-bg-card border border-navy-800 rounded-xl overflow-hidden opacity-90"
+                      className="bg-bg-card border border-navy-800 rounded-xl overflow-hidden"
                     >
                       {/* Thumbnail with lock overlay */}
                       <div className="relative">
@@ -220,9 +245,9 @@ export function TrainingListPage() {
                             <BookOpen className="w-14 h-14 text-navy-700" />
                           </div>
                         )}
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                          <div className="bg-navy-900/80 rounded-full p-4">
-                            <Lock className="w-8 h-8 text-text-muted" />
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-[2px]">
+                          <div className="bg-navy-900/90 rounded-full p-4 shadow-xl">
+                            <Lock className="w-8 h-8 text-white" />
                           </div>
                         </div>
                       </div>
@@ -247,9 +272,25 @@ export function TrainingListPage() {
                           )}
                         </div>
 
-                        <div className="mt-4 bg-navy-900/50 border border-navy-800 rounded-lg px-4 py-3 text-center">
-                          <p className="text-xs text-text-muted">Você ainda não tem acesso a este treinamento.</p>
-                        </div>
+                        {alreadyInterested ? (
+                          <div className="mt-4 bg-green-900/20 border border-green-800/50 rounded-lg px-4 py-3 text-center">
+                            <p className="text-xs text-green-400 flex items-center justify-center gap-2">
+                              <Check className="w-4 h-4" /> Interesse registrado! Em breve entraremos em contato
+                            </p>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Confirma interesse no treinamento "${t.title}"? Um gestor entrará em contato.`)) {
+                                interestMutation.mutate(t.id)
+                              }
+                            }}
+                            disabled={interestMutation.isPending}
+                            className="mt-4 w-full bg-red-veon hover:bg-red-veon-dark text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                          >
+                            <Heart className="w-4 h-4" /> Tenho interesse
+                          </button>
+                        )}
                       </div>
                     </div>
                   )

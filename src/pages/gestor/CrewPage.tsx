@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
-import { Plus, Trash2, Copy, Check, X, Mail, Lock, User, Calendar, Shield, Layers, Phone, CreditCard, BookOpen, Search } from 'lucide-react'
+import { Plus, Trash2, Copy, Check, X, Mail, Lock, User, Calendar, Shield, Layers, Phone, CreditCard, BookOpen, Search, Wallet } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface UserProfile {
   id: string
@@ -15,7 +16,10 @@ interface UserProfile {
 
 export function CrewPage() {
   const queryClient = useQueryClient()
+  const { user: currentUser } = useAuth()
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [creditModal, setCreditModal] = useState<{ userId: string; userName: string } | null>(null)
+  const [creditForm, setCreditForm] = useState({ amount: '', description: '', operation: 'add' as 'add' | 'remove' })
   const [createForm, setCreateForm] = useState({ name: '', email: '', password: '', role: 'tripulante', groupIds: [] as string[] })
   const [createdInfo, setCreatedInfo] = useState<{ email: string; password: string } | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
@@ -172,6 +176,43 @@ export function CrewPage() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['gestor-user-groups'] }),
   })
+
+  // Add/remove credit mutation
+  const creditMutation = useMutation({
+    mutationFn: async () => {
+      if (!creditModal) return
+      const value = parseFloat(creditForm.amount.replace(',', '.'))
+      if (isNaN(value) || value <= 0) throw new Error('Valor inválido')
+      const finalAmount = creditForm.operation === 'add' ? value : -value
+      const { error } = await supabase.rpc('add_credit', {
+        target_user: creditModal.userId,
+        credit_amount: finalAmount,
+        credit_type: creditForm.operation === 'add' ? 'manual_add' : 'manual_remove',
+        credit_description: creditForm.description || (creditForm.operation === 'add' ? 'Crédito manual' : 'Débito manual'),
+        actor_user: currentUser?.id || null,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      setCreditModal(null)
+      setCreditForm({ amount: '', description: '', operation: 'add' })
+      queryClient.invalidateQueries({ queryKey: ['gestor-credits'] })
+    },
+  })
+
+  // Fetch credits for all users
+  const { data: allCredits = [] } = useQuery({
+    queryKey: ['gestor-credits'],
+    queryFn: async () => {
+      const { data } = await supabase.from('credits').select('user_id, balance')
+      return data || []
+    },
+  })
+
+  function getUserBalance(userId: string): number {
+    const c = allCredits.find((c: any) => c.user_id === userId)
+    return c ? Number(c.balance) : 0
+  }
 
   // Helpers
   function copyToClipboard(text: string, field: string) {
@@ -352,6 +393,7 @@ export function CrewPage() {
           const uGroups = getUserGroupIds(u.id)
           const groupNames = groups.filter((g: any) => uGroups.includes(g.id)).map((g: any) => g.name)
 
+          const balance = getUserBalance(u.id)
           return (
             <div
               key={u.id}
@@ -362,9 +404,14 @@ export function CrewPage() {
                 {u.name.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-medium text-text-primary">{u.name}</h3>
                   <span className={`text-xs px-2 py-0.5 rounded ${u.role === 'gestor' ? 'bg-red-veon/20 text-red-veon' : 'bg-navy-800 text-text-muted'}`}>{u.role}</span>
+                  {balance > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-green-900/30 text-green-400 flex items-center gap-1">
+                      <Wallet className="w-3 h-3" /> R$ {balance.toFixed(2).replace('.', ',')}
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                   <span className="text-xs text-text-muted flex items-center gap-1"><Mail className="w-3 h-3" /> {u.email}</span>
@@ -381,6 +428,16 @@ export function CrewPage() {
                   </div>
                 )}
               </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setCreditModal({ userId: u.id, userName: u.name })
+                  setCreditForm({ amount: '', description: '', operation: 'add' })
+                }}
+                className="flex items-center gap-1.5 text-xs bg-green-900/30 hover:bg-green-900/50 text-green-400 px-3 py-2 rounded-lg transition-colors flex-shrink-0"
+              >
+                <Wallet className="w-3.5 h-3.5" /> Crédito
+              </button>
             </div>
           )
         })}
@@ -548,6 +605,102 @@ export function CrewPage() {
                   {deleteMutation.isPending ? 'Excluindo...' : 'Excluir tripulante permanentemente'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Credit modal */}
+      {creditModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setCreditModal(null)}>
+          <div className="bg-bg-card border border-navy-800 rounded-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-navy-800">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-green-400" />
+                <h2 className="text-lg font-semibold">Gerenciar Créditos</h2>
+              </div>
+              <button onClick={() => setCreditModal(null)} className="text-text-muted hover:text-text-primary"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <p className="text-xs text-text-muted">Tripulante</p>
+                <p className="text-text-primary font-medium">{creditModal.userName}</p>
+                <p className="text-sm text-green-400 mt-1">
+                  Saldo atual: R$ {getUserBalance(creditModal.userId).toFixed(2).replace('.', ',')}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setCreditForm(f => ({ ...f, operation: 'add' }))}
+                  className={`py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    creditForm.operation === 'add'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-bg-input text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  + Adicionar
+                </button>
+                <button
+                  onClick={() => setCreditForm(f => ({ ...f, operation: 'remove' }))}
+                  className={`py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    creditForm.operation === 'remove'
+                      ? 'bg-red-veon text-white'
+                      : 'bg-bg-input text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  − Remover
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-sm text-text-secondary mb-1.5">Valor (R$)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={creditForm.amount}
+                  onChange={(e) => setCreditForm(f => ({ ...f, amount: e.target.value.replace(/[^\d,.]/g, '') }))}
+                  className="w-full bg-bg-input border border-navy-700 rounded-lg px-4 py-3 text-text-primary text-lg font-semibold focus:outline-none focus:border-red-veon"
+                  placeholder="0,00"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-text-secondary mb-1.5">Motivo (opcional)</label>
+                <input
+                  type="text"
+                  value={creditForm.description}
+                  onChange={(e) => setCreditForm(f => ({ ...f, description: e.target.value }))}
+                  className="w-full bg-bg-input border border-navy-700 rounded-lg px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-red-veon"
+                  placeholder="Ex: Bônus de campanha, ajuste manual..."
+                />
+              </div>
+
+              {creditMutation.isError && (
+                <p className="text-red-veon text-sm">{(creditMutation.error as Error).message}</p>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-navy-800 flex gap-2">
+              <button
+                onClick={() => setCreditModal(null)}
+                className="flex-1 bg-bg-input text-text-secondary hover:text-text-primary py-2.5 rounded-lg text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => creditMutation.mutate()}
+                disabled={!creditForm.amount || creditMutation.isPending}
+                className={`flex-1 text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50 ${
+                  creditForm.operation === 'add'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-red-veon hover:bg-red-veon-dark'
+                }`}
+              >
+                {creditMutation.isPending ? 'Processando...' : 'Confirmar'}
+              </button>
             </div>
           </div>
         </div>

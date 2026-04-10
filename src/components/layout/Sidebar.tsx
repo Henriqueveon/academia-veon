@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { GraduationCap, LogOut, Settings, Users, BookOpen, Layers, Shield, BarChart3, Link2, LayoutDashboard, UserCircle, MessagesSquare } from 'lucide-react'
+import { GraduationCap, LogOut, Settings, Users, BookOpen, Layers, Shield, BarChart3, Link2, LayoutDashboard, UserCircle, MessagesSquare, Wallet } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 export function Sidebar() {
@@ -9,9 +9,10 @@ export function Sidebar() {
   const isGestor = profile?.role === 'gestor'
 
   const tripulanteLinks = [
-    { path: '/treinamentos', label: 'Treinamentos', icon: BookOpen },
     { path: '/comunidade', label: 'Feed', icon: MessagesSquare },
+    { path: '/treinamentos', label: 'Treinamentos', icon: BookOpen },
     { path: '/perfil', label: 'Meu Perfil', icon: UserCircle },
+    { path: '/creditos', label: 'Meus Créditos', icon: Wallet },
   ]
 
   const gestorLinks = [
