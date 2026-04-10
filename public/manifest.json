@@ -1,0 +1,21 @@
+{
+  "name": "Academia Veon",
+  "short_name": "Academia Veon",
+  "description": "Academia Veon — Comunidade, treinamentos e crescimento profissional",
+  "start_url": "/comunidade",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0e1a",
+  "theme_color": "#e63946",
+  "lang": "pt-BR",
+  "categories": ["education", "social"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { GraduationCap } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Sidebar } from './Sidebar'
 import { MobileBottomNav } from './MobileBottomNav'
+import { PushPermissionBanner } from '../PushPermissionBanner'
 
 export function AppLayout() {
   const { user, loading } = useAuth()
@@ -46,6 +47,9 @@ export function AppLayout() {
 
       {/* Mobile bottom nav */}
       <MobileBottomNav />
+
+      {/* Push notification permission banner */}
+      <PushPermissionBanner />
     </div>
   )
 }
