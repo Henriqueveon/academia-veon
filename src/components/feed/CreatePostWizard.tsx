@@ -303,15 +303,23 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<number | null>(null)
 
+  // Attach stream to video element after recording state is set (so element exists in DOM)
+  useEffect(() => {
+    if (recording && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current
+      videoRef.current.muted = true
+      videoRef.current.play().catch((err) => console.warn('Preview play failed:', err))
+    }
+  }, [recording])
+
   async function startRecording() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: true,
+      })
       streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.muted = true
-        videoRef.current.play()
-      }
+
       const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' })
       mediaRecorderRef.current = recorder
       chunksRef.current = []
@@ -378,6 +386,8 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
             className="w-full h-full object-cover"
             controls={!recording}
             playsInline
+            autoPlay={recording}
+            muted={recording}
           />
         ) : (
           <div className="text-text-muted text-center">
