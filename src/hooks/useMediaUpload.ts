@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
 
 export function useMediaUpload() {
   const [uploading, setUploading] = useState(false)
@@ -14,16 +13,44 @@ export function useMediaUpload() {
         if (file instanceof File) finalExt = file.name.split('.').pop() || 'bin'
         else finalExt = 'bin'
       }
-      const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${finalExt}`
 
-      const { error } = await supabase.storage
-        .from('thumbnails')
-        .upload(fileName, file, { cacheControl: '3600', upsert: false })
+      const contentType = (file instanceof File ? file.type : (file as Blob).type) || 'application/octet-stream'
 
-      if (error) throw error
-      const { data } = supabase.storage.from('thumbnails').getPublicUrl(fileName)
+      // 1. Get presigned URL from our serverless function
+      const signRes = await fetch('/api/r2/sign-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder, contentType, ext: finalExt }),
+      })
+
+      if (!signRes.ok) {
+        throw new Error('Failed to get upload URL')
+      }
+
+      const { uploadUrl, publicUrl } = await signRes.json()
+
+      // 2. Upload directly to R2 using XHR for progress tracking
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('PUT', uploadUrl, true)
+        xhr.setRequestHeader('Content-Type', contentType)
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setProgress(Math.round((e.loaded / e.total) * 100))
+          }
+        }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve()
+          else reject(new Error(`Upload failed: ${xhr.status}`))
+        }
+        xhr.onerror = () => reject(new Error('Network error'))
+        xhr.send(file)
+      })
+
       setProgress(100)
-      return data.publicUrl
+      return publicUrl
     } catch (err) {
       console.error('Upload failed:', err)
       return null
