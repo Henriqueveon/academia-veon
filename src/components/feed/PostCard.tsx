@@ -592,25 +592,54 @@ function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
   const progressRef = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
-  const [audioDuration, setAudioDuration] = useState(duration || 0)
+  const [audioDuration, setAudioDuration] = useState<number>(
+    duration && isFinite(duration) && duration > 0 ? duration : 0
+  )
 
-  function toggle() {
+  // Workaround: WebM duration trick — if duration is Infinity, seek to large value to force browser to compute it
+  function handleLoadedMetadata(e: React.SyntheticEvent<HTMLAudioElement>) {
+    const audio = e.currentTarget
+    if (!isFinite(audio.duration)) {
+      audio.currentTime = 1e10
+      const onSeek = () => {
+        audio.currentTime = 0
+        if (isFinite(audio.duration) && audio.duration > 0) {
+          setAudioDuration(audio.duration)
+        }
+        audio.removeEventListener('seeked', onSeek)
+      }
+      audio.addEventListener('seeked', onSeek)
+    } else if (audio.duration > 0) {
+      setAudioDuration(audio.duration)
+    }
+  }
+
+  async function toggle() {
     if (!audioRef.current) return
-    if (playing) audioRef.current.pause()
-    else audioRef.current.play()
-    setPlaying(!playing)
+    if (playing) {
+      audioRef.current.pause()
+      setPlaying(false)
+    } else {
+      try {
+        await audioRef.current.play()
+        setPlaying(true)
+      } catch (err) {
+        console.warn('Audio play failed:', err)
+      }
+    }
   }
 
   function format(s: number) {
-    if (!isFinite(s)) return '0:00'
+    if (!isFinite(s) || s < 0) return '0:00'
     return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`
   }
 
   function handleSeek(e: React.MouseEvent<HTMLDivElement>) {
     if (!audioRef.current || !progressRef.current || audioDuration === 0) return
     const rect = progressRef.current.getBoundingClientRect()
-    const ratio = (e.clientX - rect.left) / rect.width
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
     audioRef.current.currentTime = audioDuration * ratio
+    setCurrentTime(audioDuration * ratio)
   }
 
   // Static waveform pattern (pseudo-random heights for visual effect)
@@ -619,7 +648,7 @@ function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
     return 30 + (seed % 70)
   })
 
-  const progressPct = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0
+  const progressPct = audioDuration > 0 ? Math.min(100, (currentTime / audioDuration) * 100) : 0
 
   return (
     <div className="w-full bg-gradient-to-r from-navy-900 to-bg-card border border-navy-700 rounded-2xl p-3 flex items-center gap-3">
@@ -668,8 +697,18 @@ function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
       <audio
         ref={audioRef}
         src={src}
-        onLoadedMetadata={(e) => setAudioDuration(e.currentTarget.duration)}
-        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+        preload="metadata"
+        onLoadedMetadata={handleLoadedMetadata}
+        onDurationChange={(e) => {
+          const d = e.currentTarget.duration
+          if (isFinite(d) && d > 0) setAudioDuration(d)
+        }}
+        onTimeUpdate={(e) => {
+          const t = e.currentTarget.currentTime
+          if (isFinite(t)) setCurrentTime(t)
+        }}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
         onEnded={() => { setPlaying(false); setCurrentTime(0) }}
       />
     </div>
