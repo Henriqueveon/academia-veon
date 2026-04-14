@@ -81,15 +81,17 @@ export function ProfilePage() {
     enabled: !!profileUserId,
   })
 
-  // User's posts
+  // User's posts — viewers only see 'ready'; owner sees their own in-flight posts too.
   const { data: userPosts = [] } = useQuery({
-    queryKey: ['user-posts', profileUserId],
+    queryKey: ['user-posts', profileUserId, isOwn],
     queryFn: async () => {
-      const { data: posts } = await supabase
+      let q = supabase
         .from('posts')
         .select('*')
         .eq('user_id', profileUserId!)
         .order('created_at', { ascending: false })
+      if (!isOwn) q = q.eq('status', 'ready')
+      const { data: posts } = await q
       if (!posts?.length) return []
 
       const postIds = posts.map((p: any) => p.id)
@@ -149,11 +151,12 @@ export function ProfilePage() {
   const { data: socialStats } = useQuery({
     queryKey: ['profile-social', profileUserId],
     queryFn: async () => {
-      // All posts of this user
+      // All ready posts of this user (in-flight posts shouldn't count toward social stats)
       const { data: userPostList } = await supabase
         .from('posts')
         .select('id')
         .eq('user_id', profileUserId!)
+        .eq('status', 'ready')
       const postIds = (userPostList || []).map((p: any) => p.id)
 
       // Total likes received on posts

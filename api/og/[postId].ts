@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (id && SUPABASE_URL && SUPABASE_ANON_KEY) {
     try {
       // Fetch post
-      const posts = await fetchFromSupabase(`posts?id=eq.${id}&select=id,user_id,caption`)
+      const posts = await fetchFromSupabase(`posts?id=eq.${id}&status=eq.ready&select=id,user_id,caption`)
       const post = Array.isArray(posts) && posts.length > 0 ? posts[0] : null
 
       if (post) {

@@ -1,16 +1,21 @@
-import { useState, useRef, useEffect, forwardRef } from 'react'
+import { useState, useRef, useEffect, forwardRef, memo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic, Eye, UserPlus, UserCheck, Volume2, VolumeX } from 'lucide-react'
 import { ShareMenu } from './ShareMenu'
+import { UploadingMedia } from './UploadingMedia'
+import { MediaFallback } from './MediaFallback'
+import { usePostReady } from '../../hooks/usePostReady'
 
 interface Props {
   post: any
+  priority?: boolean   // first visible post → fetchpriority="high" + isInitial=true
+  isInitial?: boolean  // counted toward feedReadyStore.initialReadyCount (cold-start unlock)
 }
 
-export function PostCard({ post }: Props) {
+function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -23,6 +28,14 @@ export function PostCard({ post }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   const isOwn = post.user_id === user?.id
+
+  // Gating: skeleton until first media loads (or 4s failsafe).
+  // Audio/in-flight uploading posts skip the gate (audio is metadata-only,
+  // uploading already shows its own UploadingMedia overlay).
+  const firstPage = post.pages?.[0]
+  const skipGate = post.status === 'uploading' || post.status === 'failed' || firstPage?.type === 'audio'
+  const { ready, errored, onMediaLoad, onMediaError } = usePostReady(post.id, { isInitial })
+  const showSkeleton = !skipGate && !ready
 
   // Following status
   const { data: isFollowing = false } = useQuery({
@@ -370,34 +383,50 @@ export function PostCard({ post }: Props) {
 
       {/* Carousel */}
       <div className={`relative bg-navy-900 ${isAudioOnly ? 'px-4 py-3' : 'aspect-[4/5]'}`}>
-        {/* Uploading overlay */}
-        {post._uploading && (
-          <div className="absolute inset-0 bg-black/60 z-20 flex flex-col items-center justify-center text-white">
-            <div className="w-10 h-10 border-3 border-white border-t-transparent rounded-full animate-spin mb-3" />
-            <p className="text-sm">Publicando...</p>
-          </div>
+        {/* Uploading / failed skeleton overlay (visible only to the author via feed filter) */}
+        {(post.status === 'uploading' || post.status === 'failed') && (
+          <UploadingMedia post={{ id: post.id, status: post.status, failed_reason: post.failed_reason }} />
         )}
-        {currentPageData && (
+        {post.status !== 'uploading' && post.status !== 'failed' && currentPageData && (
           <>
-            {currentPageData.type === 'image' && currentPageData.image_url && (
-              <img
-                src={currentPageData.image_url}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="w-full h-full object-cover"
-              />
+            {errored ? (
+              <MediaFallback variant={currentPageData.type} />
+            ) : (
+              <div
+                className={`absolute inset-0 transition-opacity duration-200 ${ready || skipGate ? 'opacity-100' : 'opacity-0'}`}
+              >
+                {currentPageData.type === 'image' && currentPageData.image_url && (
+                  <img
+                    src={currentPageData.image_url}
+                    alt=""
+                    width={800}
+                    height={1000}
+                    loading={priority ? 'eager' : 'lazy'}
+                    decoding="async"
+                    fetchPriority={priority ? 'high' : 'low'}
+                    className="w-full h-full object-cover"
+                    onLoad={onMediaLoad}
+                    onError={onMediaError}
+                  />
+                )}
+                {currentPageData.type === 'video' && currentPageData.image_url && (
+                  <FeedVideo
+                    ref={videoRef}
+                    key={currentPageData.id}
+                    src={currentPageData.image_url}
+                    poster={currentPageData.thumbnail_url || undefined}
+                    onCanPlay={onMediaLoad}
+                    onError={onMediaError}
+                  />
+                )}
+                {currentPageData.type === 'audio' && currentPageData.image_url && (
+                  <AudioPlayer src={currentPageData.image_url} duration={currentPageData.duration_seconds} />
+                )}
+              </div>
             )}
-            {currentPageData.type === 'video' && currentPageData.image_url && (
-              <FeedVideo
-                ref={videoRef}
-                key={currentPageData.id}
-                src={currentPageData.image_url}
-                poster={currentPageData.thumbnail_url || undefined}
-              />
-            )}
-            {currentPageData.type === 'audio' && currentPageData.image_url && (
-              <AudioPlayer src={currentPageData.image_url} duration={currentPageData.duration_seconds} />
+            {/* Skeleton overlay until first media loads (fades out on ready) */}
+            {showSkeleton && !errored && (
+              <div className="absolute inset-0 bg-navy-800 animate-pulse z-5" />
             )}
           </>
         )}
@@ -435,31 +464,33 @@ export function PostCard({ post }: Props) {
         )}
       </div>
 
-      {/* Actions */}
-      <div className="px-4 pt-3 pb-2 flex items-center gap-5">
-        <button
-          onClick={() => toggleLike.mutate()}
-          className="flex items-center gap-1.5 text-text-secondary hover:scale-110 transition-transform"
-        >
-          <Heart className={`w-6 h-6 ${post.likedByMe ? 'fill-red-veon text-red-veon' : ''}`} />
-          <span className="text-sm font-semibold text-text-primary">{post.likesCount}</span>
-        </button>
-        <button
-          onClick={() => setShowComments(!showComments)}
-          className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary"
-        >
-          <MessageCircle className="w-6 h-6" />
-          <span className="text-sm font-semibold text-text-primary">{post.commentsCount}</span>
-        </button>
-        <button
-          onClick={() => setShowShare(true)}
-          className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary hover:scale-110 transition-transform"
-          title="Compartilhar"
-        >
-          <Send className="w-[22px] h-[22px] -translate-y-px" strokeWidth={2} />
-          <span className="text-sm font-semibold text-text-primary">{post.sharesCount || 0}</span>
-        </button>
-      </div>
+      {/* Actions — hidden while the post is not public */}
+      {post.status !== 'uploading' && post.status !== 'failed' && (
+        <div className="px-4 pt-3 pb-2 flex items-center gap-5">
+          <button
+            onClick={() => toggleLike.mutate()}
+            className="flex items-center gap-1.5 text-text-secondary hover:scale-110 transition-transform"
+          >
+            <Heart className={`w-6 h-6 ${post.likedByMe ? 'fill-red-veon text-red-veon' : ''}`} />
+            <span className="text-sm font-semibold text-text-primary">{post.likesCount}</span>
+          </button>
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary"
+          >
+            <MessageCircle className="w-6 h-6" />
+            <span className="text-sm font-semibold text-text-primary">{post.commentsCount}</span>
+          </button>
+          <button
+            onClick={() => setShowShare(true)}
+            className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary hover:scale-110 transition-transform"
+            title="Compartilhar"
+          >
+            <Send className="w-[22px] h-[22px] -translate-y-px" strokeWidth={2} />
+            <span className="text-sm font-semibold text-text-primary">{post.sharesCount || 0}</span>
+          </button>
+        </div>
+      )}
 
       {showShare && <ShareMenu post={post} onClose={() => setShowShare(false)} />}
 
@@ -544,7 +575,24 @@ export function PostCard({ post }: Props) {
   )
 }
 
-const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string }>(({ src, poster }, ref) => {
+export const PostCard = memo(PostCardImpl, (prev, next) => {
+  return (
+    prev.priority === next.priority &&
+    prev.isInitial === next.isInitial &&
+    prev.post.id === next.post.id &&
+    prev.post.status === next.post.status &&
+    prev.post.failed_reason === next.post.failed_reason &&
+    prev.post.likesCount === next.post.likesCount &&
+    prev.post.commentsCount === next.post.commentsCount &&
+    prev.post.sharesCount === next.post.sharesCount &&
+    prev.post.likedByMe === next.post.likedByMe &&
+    prev.post.caption === next.post.caption &&
+    prev.post.pages === next.post.pages &&
+    prev.post.comments === next.post.comments
+  )
+})
+
+const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; onCanPlay?: () => void; onError?: () => void }>(({ src, poster, onCanPlay, onError }, ref) => {
   const localRef = useRef<HTMLVideoElement>(null)
   // Sync external ref
   useEffect(() => {
@@ -557,6 +605,20 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string }>
   const [progress, setProgress] = useState(0)
   const [holding, setHolding] = useState(false)
   const holdTimerRef = useRef<number | null>(null)
+
+  // Eagerly buffer when card enters viewport (with preload="metadata", bytes are skipped on load).
+  useEffect(() => {
+    if (!localRef.current) return
+    const v = localRef.current
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.3) v.load()
+      },
+      { threshold: [0, 0.3] },
+    )
+    observer.observe(v)
+    return () => observer.disconnect()
+  }, [src])
 
   function handlePointerDown(e: React.PointerEvent) {
     if (!localRef.current) return
@@ -608,8 +670,11 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string }>
         playsInline
         muted={muted}
         loop
-        preload="auto"
+        preload="metadata"
         onClick={handleVideoClick}
+        onCanPlay={onCanPlay}
+        onLoadedMetadata={onCanPlay}
+        onError={onError}
         onTimeUpdate={(e) => {
           const v = e.currentTarget
           if (v.duration > 0) setProgress((v.currentTime / v.duration) * 100)

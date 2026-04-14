@@ -7,9 +7,14 @@ import { CreatePostWizard } from '../../components/feed/CreatePostWizard'
 import { PostCard } from '../../components/feed/PostCard'
 import { NotificationsBell } from '../../components/feed/NotificationsBell'
 import { saveCache, loadCache } from '../../lib/feedCache'
+import { useUploadStore } from '../../stores/uploadStore'
+import { useFeedReadyStore } from '../../stores/feedReadyStore'
+import { PostCardSkeleton } from '../../components/feed/PostCardSkeleton'
 
 const PAGE_SIZE = 5
 const CACHE_KEY = 'feed-first-page'
+const INITIAL_BUDGET = 3              // # of top posts that gate the cold-start scroll lock
+const SCROLL_LOCK_TIMEOUT_MS = 2000   // failsafe — never lock longer than this
 
 interface FeedPage {
   posts: any[]
@@ -22,6 +27,13 @@ async function fetchFeedPage(cursor: string | null, userId: string | null, fetch
     .select('*')
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE)
+
+  // Only 'ready' posts are visible to everyone; author additionally sees their own in-flight posts.
+  if (userId) {
+    query = query.or(`status.eq.ready,user_id.eq.${userId}`)
+  } else {
+    query = query.eq('status', 'ready')
+  }
 
   if (fetchNewer && newerThan) {
     // Fetch only posts newer than the most recent we have
@@ -122,6 +134,91 @@ export function FeedPage() {
       saveCache(CACHE_KEY, data.pages[0])
     }
   }, [data])
+
+  // Cold-start scroll lock: only when there's NO cached first page.
+  // Releases as soon as INITIAL_BUDGET posts mark themselves ready, or after the failsafe.
+  useEffect(() => {
+    if (cachedFirstPage) return
+    useFeedReadyStore.getState().resetInitial(INITIAL_BUDGET)
+    document.body.style.overflow = 'hidden'
+    const release = () => {
+      document.body.style.overflow = ''
+    }
+    const failsafe = window.setTimeout(release, SCROLL_LOCK_TIMEOUT_MS)
+    const unsub = useFeedReadyStore.subscribe((s) => {
+      if (s.initialReadyCount >= INITIAL_BUDGET) release()
+    })
+    return () => {
+      window.clearTimeout(failsafe)
+      unsub()
+      release()
+    }
+    // intentionally empty deps: only runs on mount; cachedFirstPage is captured
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Preload the first post's hero image so it races with the JS bundle
+  useEffect(() => {
+    const firstPost = data?.pages?.[0]?.posts?.[0]
+    const firstPage = firstPost?.pages?.[0]
+    const href = firstPage?.thumbnail_url || firstPage?.image_url
+    if (!href || firstPage?.type === 'audio') return
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.as = 'image'
+    link.href = href
+    link.fetchPriority = 'high'
+    document.head.appendChild(link)
+    return () => {
+      document.head.removeChild(link)
+    }
+  }, [data])
+
+  // Zombie sweep: if one of the user's own posts is stuck in 'uploading' with no
+  // active upload entry in the store AND was started >10min ago, mark it failed.
+  useEffect(() => {
+    if (!user || !data) return
+    const store = useUploadStore.getState()
+    const cutoff = Date.now() - 10 * 60 * 1000
+    const zombieIds: string[] = []
+    for (const page of data.pages) {
+      for (const post of page.posts) {
+        if (
+          post.user_id === user.id &&
+          post.status === 'uploading' &&
+          !store.byPostId[post.id] &&
+          post.upload_started_at &&
+          new Date(post.upload_started_at).getTime() < cutoff
+        ) {
+          zombieIds.push(post.id)
+        }
+      }
+    }
+    if (zombieIds.length === 0) return
+    supabase
+      .from('posts')
+      .update({ status: 'failed', failed_reason: 'Upload interrompido' })
+      .in('id', zombieIds)
+      .then(() => {
+        queryClient.setQueryData<InfiniteData<FeedPage, string | null>>(
+          ['feed-posts', user.id],
+          (old) => {
+            if (!old) return old
+            return {
+              ...old,
+              pages: old.pages.map((p) => ({
+                ...p,
+                posts: p.posts.map((post: any) =>
+                  zombieIds.includes(post.id)
+                    ? { ...post, status: 'failed', failed_reason: 'Upload interrompido' }
+                    : post,
+                ),
+              })),
+            }
+          },
+        )
+      })
+  }, [data, user, queryClient])
 
   // IntersectionObserver: auto-load next page when sentinel is visible
   useEffect(() => {
@@ -267,7 +364,7 @@ export function FeedPage() {
       {isLoading && posts.length === 0 && (
         <div className="space-y-6">
           {[1, 2, 3].map((i) => (
-            <PostSkeleton key={i} />
+            <PostCardSkeleton key={i} />
           ))}
         </div>
       )}
@@ -282,8 +379,13 @@ export function FeedPage() {
 
       {/* Posts */}
       <div className="space-y-6">
-        {posts.map((post: any) => (
-          <PostCard key={post.id} post={post} />
+        {posts.map((post: any, idx: number) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            priority={idx === 0}
+            isInitial={idx < INITIAL_BUDGET}
+          />
         ))}
       </div>
 
@@ -309,21 +411,3 @@ export function FeedPage() {
   )
 }
 
-function PostSkeleton() {
-  return (
-    <div className="bg-bg-card border border-navy-800 rounded-2xl overflow-hidden animate-pulse">
-      <div className="flex items-center gap-3 p-4">
-        <div className="w-10 h-10 rounded-full bg-navy-800" />
-        <div className="flex-1 space-y-2">
-          <div className="h-3 bg-navy-800 rounded w-1/3" />
-          <div className="h-2 bg-navy-800 rounded w-1/4" />
-        </div>
-      </div>
-      <div className="aspect-[4/5] bg-navy-800" />
-      <div className="p-4 space-y-2">
-        <div className="h-3 bg-navy-800 rounded w-1/4" />
-        <div className="h-3 bg-navy-800 rounded w-3/4" />
-      </div>
-    </div>
-  )
-}

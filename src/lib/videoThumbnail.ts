@@ -1,6 +1,9 @@
-// Generate a JPEG thumbnail from the first frame of a video file/blob
-// Returns a Blob ready to upload
-export async function generateVideoThumbnail(file: File | Blob): Promise<Blob | null> {
+// Generate a WebP thumbnail from the first frame of a video file/blob.
+// Falls back to JPEG when the browser can't encode WebP via canvas.
+// Returns a Blob ready to upload.
+export type VideoThumbResult = { blob: Blob; mime: 'image/webp' | 'image/jpeg' } | null
+
+export async function generateVideoThumbnail(file: File | Blob): Promise<VideoThumbResult> {
   return new Promise((resolve) => {
     try {
       const url = URL.createObjectURL(file)
@@ -54,11 +57,23 @@ export async function generateVideoThumbnail(file: File | Blob): Promise<Blob | 
           ctx.drawImage(video, 0, 0, w, h)
           canvas.toBlob(
             (blob) => {
-              cleanup()
-              resolve(blob)
+              if (blob && blob.type === 'image/webp') {
+                cleanup()
+                resolve({ blob, mime: 'image/webp' })
+              } else {
+                // WebP not supported (older Safari) — fall back to JPEG
+                canvas.toBlob(
+                  (jpg) => {
+                    cleanup()
+                    resolve(jpg ? { blob: jpg, mime: 'image/jpeg' } : null)
+                  },
+                  'image/jpeg',
+                  0.85,
+                )
+              }
             },
-            'image/jpeg',
-            0.85
+            'image/webp',
+            0.85,
           )
         } catch (err) {
           console.warn('Thumbnail generation failed:', err)

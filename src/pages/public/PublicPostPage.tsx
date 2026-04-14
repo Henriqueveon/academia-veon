@@ -28,7 +28,7 @@ export function PublicPostPage() {
   useEffect(() => {
     if (!postId) return
     ;(async () => {
-      const { data } = await supabase.from('posts').select('*').eq('id', postId).single()
+      const { data } = await supabase.from('posts').select('*').eq('id', postId).eq('status', 'ready').single()
       if (!data) { setLoading(false); return }
 
       const [pagesRes, profileRes, likesRes, commentsRes] = await Promise.all([

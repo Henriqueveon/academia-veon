@@ -6,6 +6,52 @@ export function getLastUploadError(): string | null {
   return lastUploadError
 }
 
+export type SignedUpload = { uploadUrl: string; publicUrl: string; key: string }
+
+export async function signR2Upload(folder: string, contentType: string, ext: string): Promise<SignedUpload> {
+  const res = await fetch('/api/r2/sign-upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ folder, contentType, ext }),
+  })
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '')
+    throw new Error(`Sign URL falhou (${res.status}): ${errText}`)
+  }
+  return res.json()
+}
+
+export function uploadBlobToR2(
+  uploadUrl: string,
+  blob: Blob | File,
+  contentType: string,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', uploadUrl, true)
+    xhr.setRequestHeader('Content-Type', contentType)
+    xhr.timeout = 10 * 60 * 1000
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total)
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve()
+      else reject(new Error(`R2 PUT falhou (${xhr.status}): ${xhr.responseText?.slice(0, 200) || ''}`))
+    }
+    xhr.onerror = () => reject(new Error(`Erro de rede no upload`))
+    xhr.ontimeout = () => reject(new Error(`Timeout de upload (10min)`))
+    xhr.onabort = () => reject(new Error('Upload cancelado'))
+    try {
+      xhr.send(blob)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      reject(new Error(`Erro ao iniciar upload: ${msg}`))
+    }
+  })
+}
+
 export function useMediaUpload() {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -24,51 +70,12 @@ export function useMediaUpload() {
         if (file instanceof File) finalExt = file.name.split('.').pop() || 'bin'
         else finalExt = 'bin'
       }
-
       const contentType = (file instanceof File ? file.type : (file as Blob).type) || 'application/octet-stream'
 
-      // 1. Get presigned URL from our serverless function
-      const signRes = await fetch('/api/r2/sign-upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder, contentType, ext: finalExt }),
-      })
+      const { uploadUrl, publicUrl } = await signR2Upload(folder, contentType, finalExt)
 
-      if (!signRes.ok) {
-        const errText = await signRes.text().catch(() => '')
-        throw new Error(`Sign URL falhou (${signRes.status}): ${errText}`)
-      }
-
-      const { uploadUrl, publicUrl } = await signRes.json()
-
-      // 2. Upload directly to R2 using XHR for progress tracking
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-        xhr.open('PUT', uploadUrl, true)
-        xhr.setRequestHeader('Content-Type', contentType)
-
-        // Generous timeout for mobile networks (10 minutes)
-        xhr.timeout = 10 * 60 * 1000
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            setProgress(Math.round((e.loaded / e.total) * 100))
-          }
-        }
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve()
-          else reject(new Error(`R2 PUT falhou (${xhr.status}): ${xhr.responseText?.slice(0, 200) || ''}`))
-        }
-        xhr.onerror = () => reject(new Error(`Erro de rede no upload (arquivo ${fileSizeMb}MB)`))
-        xhr.ontimeout = () => reject(new Error(`Timeout de upload (10min) — arquivo muito grande ou conexão lenta`))
-        xhr.onabort = () => reject(new Error('Upload cancelado'))
-
-        try {
-          xhr.send(file)
-        } catch (err: any) {
-          reject(new Error(`Erro ao iniciar upload: ${err.message || err}`))
-        }
+      await uploadBlobToR2(uploadUrl, file, contentType, (loaded, total) => {
+        setProgress(Math.round((loaded / total) * 100))
       })
 
       setProgress(100)

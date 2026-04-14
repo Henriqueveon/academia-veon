@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { useMediaUpload, getLastUploadError } from '../../hooks/useMediaUpload'
+import { signR2Upload } from '../../hooks/useMediaUpload'
 import { generateVideoThumbnail } from '../../lib/videoThumbnail'
+import { compressImage } from '../../lib/imageCompression'
 import { useQueryClient } from '@tanstack/react-query'
+import { startPostUpload, type UploadTarget } from '../../lib/postUploadManager'
 import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause } from 'lucide-react'
 
 const CAPTION_MAX = 500
@@ -28,7 +30,6 @@ interface Props {
 export function CreatePostWizard({ onClose, onCreated }: Props) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const { uploadMedia } = useMediaUpload()
 
   const [step, setStep] = useState<'type' | 'pages' | 'caption'>('type')
   const [postType, setPostType] = useState<MediaType | null>(null)
@@ -64,107 +65,59 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
     return pages.every(p => !!p.file && !!p.previewUrl)
   }
 
-  // Optimistic submission — closes modal instantly, post appears immediately
+  // New flow: DB row is created FIRST with status='uploading', then R2 uploads run
+  // in a detached manager. Post is invisible to others until status flips to 'ready'.
   async function submit() {
     if (!user || !canProceed()) return
 
-    // Build optimistic post with local previews (URL.createObjectURL)
-    const tempId = `temp-${Date.now()}`
-
-    // Try to fetch current user profile from cache for nicer optimistic display
-    const currentProfile = queryClient.getQueryData<any>(['profile', user.id])
-
-    const optimisticPost = {
-      id: tempId,
-      user_id: user.id,
-      caption: caption.trim() || null,
-      created_at: new Date().toISOString(),
-      author: {
-        name: currentProfile?.name || 'Você',
-        avatar_url: currentProfile?.avatar_url || null,
-        profession: currentProfile?.profession || null,
-      },
-      pages: pages.map((p, i) => ({
-        id: `${tempId}-${i}`,
-        post_id: tempId,
-        type: p.type,
-        image_url: p.previewUrl, // local blob URL — shows instantly
-        sort_order: i,
-        duration_seconds: p.duration || null,
-      })),
-      likes: [],
-      likedByMe: false,
-      likesCount: 0,
-      comments: [],
-      commentsCount: 0,
-      sharesCount: 0,
-      _uploading: true,
-    }
-
-    const feedKey = ['feed-posts', user.id]
-
-    // Insert optimistic post into infinite query cache (page 0)
-    queryClient.setQueryData<any>(feedKey, (old: any) => {
-      if (!old) {
-        return {
-          pages: [{ posts: [optimisticPost], nextCursor: null }],
-          pageParams: [null],
-        }
-      }
-      const newPages = [...old.pages]
-      newPages[0] = {
-        ...newPages[0],
-        posts: [optimisticPost, ...(newPages[0]?.posts || [])],
-      }
-      return { ...old, pages: newPages }
-    })
-
-    // Close modal IMMEDIATELY — user goes back to feed and sees the post
-    onCreated()
-
-    // Upload + insert in background — user already sees the post
     try {
-      // For each page, upload the main media. For videos, also generate
-      // and upload a thumbnail in parallel so the player can show a poster.
-      const uploadResults = await Promise.all(pages.map(async (p) => {
-        const ext = p.type === 'image' ? 'jpg' : p.type === 'video' ? 'webm' : 'webm'
-
-        if (p.type === 'video') {
-          // Generate thumbnail (best effort, doesn't block on failure)
-          const thumbBlob = await generateVideoThumbnail(p.file!).catch(() => null)
-
-          // Upload video and thumbnail in parallel
-          const [videoUrl, thumbUrl] = await Promise.all([
-            uploadMedia(p.file!, `posts/${p.type}`, ext),
-            thumbBlob ? uploadMedia(thumbBlob, 'posts/thumbnails', 'jpg') : Promise.resolve(null),
-          ])
-          return { url: videoUrl, thumbnail: thumbUrl }
+      // 1a. Compress images client-side (WebP @0.85, max 1920px) so we send less to R2.
+      // 1b. Generate WebP thumbnails for video pages up-front.
+      const processedFiles: Blob[] = []
+      const thumbResults: (Awaited<ReturnType<typeof generateVideoThumbnail>>)[] = []
+      for (let i = 0; i < pages.length; i++) {
+        const p = pages[i]
+        if (p.type === 'image') {
+          processedFiles[i] = await compressImage(p.file!).catch(() => p.file!)
+          thumbResults[i] = null
+        } else {
+          processedFiles[i] = p.file!
+          thumbResults[i] = p.type === 'video' ? await generateVideoThumbnail(p.file!).catch(() => null) : null
         }
-
-        const url = await uploadMedia(p.file!, `posts/${p.type}`, ext)
-        return { url, thumbnail: null }
-      }))
-
-      const urls = uploadResults.map(r => r.url)
-
-      if (urls.some(u => !u)) {
-        const detail = getLastUploadError() || 'erro desconhecido'
-        throw new Error(`Falha no upload: ${detail}`)
       }
 
-      // Create the real post in DB
-      const { data: post, error } = await supabase
+      // 2. Pre-sign R2 upload URLs for media + thumbnails so we can persist
+      //    the final publicUrls in post_pages before any byte is shipped.
+      const signedPerPage = await Promise.all(
+        pages.map(async (p, i) => {
+          const mediaBlob = processedFiles[i]
+          const mediaCT = mediaBlob.type || (p.type === 'audio' ? 'audio/webm' : p.type === 'video' ? 'video/webm' : 'image/webp')
+          const mediaExt = p.type === 'image' ? (mediaCT === 'image/webp' ? 'webp' : 'jpg') : 'webm'
+          const mediaSigned = await signR2Upload(`posts/${p.type}`, mediaCT, mediaExt)
+          let thumbSigned = null as Awaited<ReturnType<typeof signR2Upload>> | null
+          const thumb = thumbResults[i]
+          if (thumb) {
+            const thumbExt = thumb.mime === 'image/webp' ? 'webp' : 'jpg'
+            thumbSigned = await signR2Upload('posts/thumbnails', thumb.mime, thumbExt)
+          }
+          return { mediaSigned, thumbSigned, mediaCT }
+        }),
+      )
+
+      // 3. Create the real posts row (status defaults to 'uploading').
+      const { data: post, error: postErr } = await supabase
         .from('posts')
-        .insert({ user_id: user.id, caption: caption.trim() || null })
+        .insert({ user_id: user.id, caption: caption.trim() || null, status: 'uploading' })
         .select()
         .single()
-      if (error || !post) throw error
+      if (postErr || !post) throw postErr || new Error('Falha ao criar post')
 
+      // 4. Insert post_pages with the pre-signed publicUrls.
       const pagesToInsert = pages.map((p, i) => ({
         post_id: post.id,
         type: p.type,
-        image_url: urls[i]!,
-        thumbnail_url: uploadResults[i].thumbnail || null,
+        image_url: signedPerPage[i].mediaSigned.publicUrl,
+        thumbnail_url: signedPerPage[i].thumbSigned?.publicUrl || null,
         sort_order: i,
         duration_seconds: p.duration || null,
       }))
@@ -174,43 +127,81 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         .select()
       if (pagesError) throw pagesError
 
-      // SWAP optimistic post with real one (without disturbing feed)
+      // 5. Seed the React Query cache so the skeleton shows immediately.
+      const currentProfile = queryClient.getQueryData<any>(['profile', user.id])
+      const feedKey = ['feed-posts', user.id]
+      const cachedPost = {
+        ...post,
+        author: {
+          name: currentProfile?.name || 'Você',
+          avatar_url: currentProfile?.avatar_url || null,
+          profession: currentProfile?.profession || null,
+        },
+        pages: insertedPages || [],
+        likes: [],
+        likedByMe: false,
+        likesCount: 0,
+        comments: [],
+        commentsCount: 0,
+        sharesCount: 0,
+      }
       queryClient.setQueryData<any>(feedKey, (old: any) => {
-        if (!old) return old
-        const newPages = old.pages.map((page: any) => ({
-          ...page,
-          posts: page.posts.map((p: any) =>
-            p.id === tempId
-              ? {
-                  ...post,
-                  author: optimisticPost.author,
-                  pages: insertedPages || optimisticPost.pages,
-                  likes: [],
-                  likedByMe: false,
-                  likesCount: 0,
-                  comments: [],
-                  commentsCount: 0,
-                  sharesCount: 0,
-                  _uploading: false,
-                }
-              : p
-          ),
-        }))
+        if (!old) {
+          return { pages: [{ posts: [cachedPost], nextCursor: null }], pageParams: [null] }
+        }
+        const newPages = [...old.pages]
+        newPages[0] = { ...newPages[0], posts: [cachedPost, ...(newPages[0]?.posts || [])] }
         return { ...old, pages: newPages }
       })
-    } catch (err: any) {
+
+      // 6. Close the modal.
+      onCreated()
+
+      // 7. Build upload targets and hand off to the manager (fire-and-forget).
+      const targets: UploadTarget[] = []
+      for (let i = 0; i < pages.length; i++) {
+        const s = signedPerPage[i]
+        const pageRow = (insertedPages || [])[i]
+        if (!pageRow) continue
+        targets.push({
+          pageId: pageRow.id,
+          kind: 'media',
+          file: processedFiles[i],
+          contentType: s.mediaCT,
+          uploadUrl: s.mediaSigned.uploadUrl,
+          publicUrl: s.mediaSigned.publicUrl,
+        })
+        const thumb = thumbResults[i]
+        if (s.thumbSigned && thumb) {
+          targets.push({
+            pageId: pageRow.id,
+            kind: 'thumb',
+            file: thumb.blob,
+            contentType: thumb.mime,
+            uploadUrl: s.thumbSigned.uploadUrl,
+            publicUrl: s.thumbSigned.publicUrl,
+          })
+        }
+      }
+
+      // When the manager finishes, flip the cached row's status to 'ready' so
+      // the skeleton morphs into the real media without a refetch.
+      startPostUpload(post.id, targets).then(() => {
+        queryClient.setQueryData<any>(feedKey, (old: any) => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              posts: page.posts.map((pp: any) => (pp.id === post.id ? { ...pp, status: 'ready' } : pp)),
+            })),
+          }
+        })
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
       console.error(err)
-      // Remove optimistic post on error
-      queryClient.setQueryData<any>(feedKey, (old: any) => {
-        if (!old) return old
-        const newPages = old.pages.map((page: any) => ({
-          ...page,
-          posts: page.posts.filter((p: any) => p.id !== tempId),
-        }))
-        return { ...old, pages: newPages }
-      })
-      const msg = err?.message || 'Erro desconhecido'
-      alert(`Erro ao publicar post:\n\n${msg}\n\nTente novamente.`)
+      alert(`Erro ao iniciar a publicação:\n\n${msg}\n\nTente novamente.`)
     }
   }
 
