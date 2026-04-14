@@ -42,6 +42,7 @@ export function NotificationsBell() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
+  const [blockedModal, setBlockedModal] = useState<{ reason?: string; createdAt: string } | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const { data: notifications = [] } = useQuery({
@@ -132,10 +133,18 @@ export function NotificationsBell() {
 
   function handleNotifClick(n: any) {
     if (!n.read) markOneRead.mutate(n.id)
-    setOpen(false)
 
-    // Post bloqueado: autor não vê o post, então não navega pra ele
-    if (n.type === 'post_blocked') return
+    // Post bloqueado: abre modal explicativo (não navega)
+    if (n.type === 'post_blocked') {
+      setBlockedModal({
+        reason: n.blockedPost?.blocked_reason,
+        createdAt: n.created_at,
+      })
+      setOpen(false)
+      return
+    }
+
+    setOpen(false)
 
     // Route based on type
     if (n.type === 'lead_interest' && n.actor_id) {
@@ -216,16 +225,25 @@ export function NotificationsBell() {
               >
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-navy-900 flex items-center justify-center">
-                    {n.actor?.avatar_url ? (
-                      <img src={n.actor.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-5 h-5 text-text-muted" />
-                    )}
-                  </div>
-                  <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-bg-card flex items-center justify-center ${config.color}`}>
-                    <Icon className="w-3 h-3" />
-                  </div>
+                  {n.type === 'post_blocked' ? (
+                    // Sem foto do gestor — ícone neutro com escudo
+                    <div className="w-10 h-10 rounded-full bg-red-veon/20 border border-red-veon/40 flex items-center justify-center">
+                      <ShieldAlert className="w-5 h-5 text-red-veon" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-navy-900 flex items-center justify-center">
+                        {n.actor?.avatar_url ? (
+                          <img src={n.actor.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-5 h-5 text-text-muted" />
+                        )}
+                      </div>
+                      <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-bg-card flex items-center justify-center ${config.color}`}>
+                        <Icon className="w-3 h-3" />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Content */}
@@ -280,6 +298,107 @@ export function NotificationsBell() {
             {NotificationsContent}
           </div>
         </>
+      )}
+
+      {/* Modal explicativo quando clica em "Post removido" */}
+      {blockedModal && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setBlockedModal(null)}
+        >
+          <div
+            className="bg-bg-card border border-red-veon/40 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="bg-red-veon/10 px-5 py-4 border-b border-red-veon/20 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-veon/20 flex items-center justify-center flex-shrink-0">
+                <ShieldAlert className="w-5 h-5 text-red-veon" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-semibold text-text-primary">Post removido da Comunidade</h2>
+                <p className="text-xs text-text-muted mt-0.5">
+                  {new Date(blockedModal.createdAt).toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </p>
+              </div>
+              <button
+                onClick={() => setBlockedModal(null)}
+                className="text-text-muted hover:text-text-primary p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto p-5 space-y-4">
+              {/* Motivo do gestor */}
+              {blockedModal.reason && (
+                <div>
+                  <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+                    Motivo
+                  </p>
+                  <div className="bg-bg-input border border-navy-700 rounded-lg px-4 py-3">
+                    <p className="text-sm text-text-primary whitespace-pre-line">
+                      {blockedModal.reason}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Diretrizes */}
+              <div>
+                <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+                  Diretrizes da Comunidade Veon
+                </p>
+                <div className="space-y-2.5 text-sm text-text-secondary">
+                  <p>
+                    A Comunidade Veon é um espaço de aprendizado, troca e crescimento.
+                    Para manter o ambiente saudável e produtivo para todos, seguimos estas diretrizes:
+                  </p>
+                  <ul className="space-y-2 ml-1">
+                    <li className="flex gap-2">
+                      <span className="text-red-veon flex-shrink-0 mt-0.5">•</span>
+                      <span>Respeito mútuo — sem ofensas, discriminação ou assédio.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-red-veon flex-shrink-0 mt-0.5">•</span>
+                      <span>Conteúdo relevante — foco em aprendizado, networking e troca de experiências.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-red-veon flex-shrink-0 mt-0.5">•</span>
+                      <span>Sem spam — evite conteúdo repetitivo, links suspeitos ou divulgação não autorizada.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-red-veon flex-shrink-0 mt-0.5">•</span>
+                      <span>Veracidade — não compartilhe informações falsas, enganosas ou fora de contexto.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-red-veon flex-shrink-0 mt-0.5">•</span>
+                      <span>Direitos autorais — respeite a propriedade intelectual de terceiros.</span>
+                    </li>
+                  </ul>
+                  <p className="text-xs text-text-muted mt-3 pt-3 border-t border-navy-800">
+                    Se você acredita que este post foi removido por engano, entre em contato com um gestor da comunidade.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-navy-800">
+              <button
+                onClick={() => setBlockedModal(null)}
+                className="w-full bg-red-veon hover:bg-red-veon-dark text-white py-2.5 rounded-lg text-sm font-semibold transition-colors"
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
