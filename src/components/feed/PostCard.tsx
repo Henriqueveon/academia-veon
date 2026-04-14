@@ -257,12 +257,24 @@ export function PostCard({ post }: Props) {
   function formatDate(date: string) {
     const d = new Date(date)
     const now = new Date()
-    const diff = Math.floor((now.getTime() - d.getTime()) / 1000)
-    if (diff < 60) return 'agora'
-    if (diff < 3600) return `${Math.floor(diff / 60)} min`
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h`
-    if (diff < 604800) return `${Math.floor(diff / 86400)}d`
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+    const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000)
+    if (diffSec < 60) return 'agora'
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)} min`
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h`
+    const sameYear = d.getFullYear() === now.getFullYear()
+    return d.toLocaleDateString('pt-BR', sameYear
+      ? { day: '2-digit', month: 'short' }
+      : { day: '2-digit', month: 'short', year: 'numeric' }
+    )
+  }
+
+  function formatDateFull(date: string) {
+    const d = new Date(date)
+    return d.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }) + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   }
 
   // Group comments by parent
@@ -295,9 +307,21 @@ export function PostCard({ post }: Props) {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-text-primary truncate">{post.author.name}</p>
-            {post.author.profession && (
-              <p className="text-xs text-text-muted truncate">{post.author.profession}</p>
-            )}
+            <div className="flex items-center gap-1.5 text-xs text-text-muted truncate">
+              {post.author.profession && (
+                <>
+                  <span className="truncate">{post.author.profession}</span>
+                  <span>·</span>
+                </>
+              )}
+              <time
+                dateTime={post.created_at}
+                title={formatDateFull(post.created_at)}
+                className="flex-shrink-0"
+              >
+                {formatDate(post.created_at)}
+              </time>
+            </div>
           </div>
         </button>
 
@@ -780,7 +804,12 @@ function CommentItem({ comment, isOwn, onLike, onReply, onDelete, formatDate }: 
           <span className="text-text-secondary">{comment.text}</span>
         </p>
         <div className="flex items-center gap-3 mt-0.5 text-xs text-text-muted">
-          <span>{formatDate(comment.created_at)}</span>
+          <time
+            dateTime={comment.created_at}
+            title={new Date(comment.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) + ' às ' + new Date(comment.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          >
+            {formatDate(comment.created_at)}
+          </time>
           {comment.likesCount > 0 && <span>{comment.likesCount} {comment.likesCount === 1 ? 'curtida' : 'curtidas'}</span>}
           <button onClick={onReply} className="hover:text-text-primary font-semibold">Responder</button>
           {isOwn && (
