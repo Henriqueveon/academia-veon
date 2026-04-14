@@ -38,6 +38,14 @@ function buildNotificationText(notification: any, actorName: string, extra?: str
       return { title: 'Novo lead 🔥', body: extra ? `${actorName} tem interesse em "${extra}"` : `${actorName} demonstrou interesse em um curso`, url: notification.actor_id ? `/perfil/${notification.actor_id}` : '/gestor/tripulantes' }
     case 'credit_received':
       return { title: 'Academia Veon 💰', body: extra || 'Você recebeu créditos!', url: '/creditos' }
+    case 'post_blocked':
+      return {
+        title: 'Post removido',
+        body: extra
+          ? `Seu post foi removido da nossa Comunidade. Motivo: ${extra}`
+          : 'Seu post foi removido da nossa Comunidade',
+        url: '/comunidade',
+      }
     default:
       return { title: 'Academia Veon', body: 'Você tem uma nova notificação', url: '/comunidade' }
   }
@@ -109,11 +117,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (actor?.name) actorName = actor.name
     }
 
-    // Fetch training name (if applicable)
+    // Fetch training name or blocked_reason (if applicable)
     let extra: string | undefined
     if (notification.training_id) {
       const training = await fetchTraining(notification.training_id)
       if (training?.title) extra = training.title
+    }
+    if (notification.type === 'post_blocked' && notification.post_id) {
+      const postUrl = `${SUPABASE_URL}/rest/v1/posts?id=eq.${notification.post_id}&select=blocked_reason`
+      const pRes = await fetch(postUrl, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+      })
+      if (pRes.ok) {
+        const pData = await pRes.json()
+        if (Array.isArray(pData) && pData.length > 0 && pData[0].blocked_reason) {
+          extra = pData[0].blocked_reason
+        }
+      }
     }
 
     const { title, body, url } = buildNotificationText(notification, actorName, extra)

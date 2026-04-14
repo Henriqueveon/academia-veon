@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Bell, User, Heart, MessageCircle, UserPlus, Share2, FileText, BookOpen, Sparkles, Wallet, X } from 'lucide-react'
+import { Bell, User, Heart, MessageCircle, UserPlus, Share2, FileText, BookOpen, Sparkles, Wallet, X, ShieldAlert } from 'lucide-react'
 
 interface NotifConfig {
   icon: any
@@ -28,6 +28,13 @@ const NOTIF_LABELS: Record<string, NotifConfig> = {
       : `${a} demonstrou interesse em um curso`,
   },
   credit_received: { icon: Wallet, color: 'text-green-400', text: (_, amount) => `Você recebeu ${amount || 'créditos'}` },
+  post_blocked: {
+    icon: ShieldAlert,
+    color: 'text-red-veon',
+    text: (_, reason) => reason
+      ? `Seu post foi removido da nossa Comunidade. Motivo: ${reason}`
+      : 'Seu post foi removido da nossa Comunidade',
+  },
 }
 
 export function NotificationsBell() {
@@ -51,6 +58,10 @@ export function NotificationsBell() {
 
       const actorIds = [...new Set(data.map((n: any) => n.actor_id).filter(Boolean))]
       const trainingIds = [...new Set(data.map((n: any) => n.training_id).filter(Boolean))]
+      // Posts referenced in blocked notifications — fetch to get blocked_reason
+      const blockedPostIds = [...new Set(
+        data.filter((n: any) => n.type === 'post_blocked' && n.post_id).map((n: any) => n.post_id)
+      )]
 
       let actorsMap = new Map()
       if (actorIds.length > 0) {
@@ -70,10 +81,20 @@ export function NotificationsBell() {
         trainingsMap = new Map((trns || []).map((t: any) => [t.id, t]))
       }
 
+      let blockedPostsMap = new Map()
+      if (blockedPostIds.length > 0) {
+        const { data: bps } = await supabase
+          .from('posts')
+          .select('id, blocked_reason')
+          .in('id', blockedPostIds)
+        blockedPostsMap = new Map((bps || []).map((p: any) => [p.id, p]))
+      }
+
       return data.map((n: any) => ({
         ...n,
         actor: n.actor_id ? actorsMap.get(n.actor_id) : null,
         training: n.training_id ? trainingsMap.get(n.training_id) : null,
+        blockedPost: n.type === 'post_blocked' && n.post_id ? blockedPostsMap.get(n.post_id) : null,
       }))
     },
     enabled: !!user,
@@ -112,6 +133,9 @@ export function NotificationsBell() {
   function handleNotifClick(n: any) {
     if (!n.read) markOneRead.mutate(n.id)
     setOpen(false)
+
+    // Post bloqueado: autor não vê o post, então não navega pra ele
+    if (n.type === 'post_blocked') return
 
     // Route based on type
     if (n.type === 'lead_interest' && n.actor_id) {
@@ -180,7 +204,7 @@ export function NotificationsBell() {
             const config = NOTIF_LABELS[n.type] || NOTIF_LABELS.new_post_feed
             const Icon = config.icon
             const actorName = n.actor?.name || 'Alguém'
-            const extra = n.training?.title || undefined
+            const extra = n.blockedPost?.blocked_reason || n.training?.title || undefined
 
             return (
               <button
