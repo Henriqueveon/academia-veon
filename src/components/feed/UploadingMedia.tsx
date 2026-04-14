@@ -3,6 +3,7 @@ import { useUploadStore } from '../../stores/uploadStore'
 import { retryPostUpload, discardPost } from '../../lib/postUploadManager'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
+import { Spinner } from '../ui/Spinner'
 
 interface Props {
   post: {
@@ -107,7 +108,7 @@ export function UploadingMedia({ post }: Props) {
           </>
         ) : (
           <>
-            <div className="w-10 h-10 border-[3px] border-white/30 border-t-white rounded-full animate-spin" />
+            <Spinner size="md" />
             <p className="text-sm font-semibold text-white">Enviando publicação… {progress}%</p>
             <div className="w-full h-1.5 bg-navy-800 rounded-full overflow-hidden">
               <div

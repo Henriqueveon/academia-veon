@@ -7,8 +7,36 @@ import { useImageUpload } from '../../hooks/useImageUpload'
 import { Camera, Check, User, Pencil, X, Image as ImageIcon, Video, Mic, Grid3x3, ArrowLeft, ImagePlus, Move, UserPlus, UserCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { PostCard } from '../../components/feed/PostCard'
+import { MediaWithSpinner } from '../../components/ui/MediaWithSpinner'
+import { Spinner } from '../../components/ui/Spinner'
 
 const BIO_MAX = 150
+
+function VideoThumbnail({ src }: { src: string }) {
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading')
+  return (
+    <>
+      <video
+        src={src}
+        className="w-full h-full object-cover"
+        muted
+        preload="metadata"
+        onLoadedData={() => setStatus('loaded')}
+        onError={() => setStatus('error')}
+      />
+      {status === 'loading' && (
+        <div className="absolute inset-0 flex items-center justify-center bg-navy-900">
+          <Spinner size="sm" />
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="absolute inset-0 flex items-center justify-center bg-navy-900">
+          <Video className="w-8 h-8 text-text-muted/30" />
+        </div>
+      )}
+    </>
+  )
+}
 
 export function ProfilePage() {
   const { user } = useAuth()
@@ -385,13 +413,14 @@ export function ProfilePage() {
           <div className="flex items-end gap-6">
             {/* Avatar */}
             <div className="relative flex-shrink-0">
-              <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-bg-card bg-navy-900 flex items-center justify-center">
-                {form.avatar_url ? (
-                  <img src={form.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-12 h-12 text-text-muted" />
-                )}
-              </div>
+              <MediaWithSpinner
+                src={form.avatar_url}
+                alt="Avatar"
+                className="w-full h-full object-cover"
+                containerClassName="w-28 h-28 rounded-full overflow-hidden border-4 border-bg-card bg-navy-900"
+                spinnerSize="md"
+                fallback={<User className="w-12 h-12 text-text-muted" />}
+              />
               {isOwn && (
                 <>
                   <button
@@ -577,11 +606,19 @@ export function ProfilePage() {
                   className="aspect-square bg-navy-900 overflow-hidden relative group"
                 >
                   {firstPage?.type === 'image' && firstPage.image_url && (
-                    <img src={firstPage.image_url} alt="" className="w-full h-full object-cover" />
+                    <MediaWithSpinner
+                      src={firstPage.image_url}
+                      alt=""
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                      containerClassName="w-full h-full"
+                      spinnerSize="sm"
+                      fallback={<ImageIcon className="w-8 h-8 text-text-muted/30" />}
+                    />
                   )}
                   {firstPage?.type === 'video' && firstPage.image_url && (
                     <>
-                      <video src={firstPage.image_url} className="w-full h-full object-cover" muted />
+                      <VideoThumbnail src={firstPage.image_url} />
                       <div className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5">
                         <Video className="w-3 h-3 text-white" />
                       </div>

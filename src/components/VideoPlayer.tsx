@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Spinner } from './ui/Spinner'
+import { MediaFallback } from './feed/MediaFallback'
 
 interface VideoPlayerProps {
   videoId: string
@@ -11,6 +13,14 @@ export function VideoPlayer({ videoId, libraryId, autoplay: _autoplay = false, o
   const libId = libraryId || import.meta.env.VITE_BUNNY_LIBRARY_ID || '621207'
   const src = `https://iframe.mediadelivery.net/embed/${libId}/${videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`
   const completedRef = useRef(false)
+  const [iframeLoaded, setIframeLoaded] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
+
+  useEffect(() => {
+    if (iframeLoaded) return
+    const t = setTimeout(() => setLoadFailed(true), 20000)
+    return () => clearTimeout(t)
+  }, [iframeLoaded])
 
   useEffect(() => {
     if (!onVideoComplete) return
@@ -67,11 +77,18 @@ export function VideoPlayer({ videoId, libraryId, autoplay: _autoplay = false, o
         id={`bunny-player-${videoId}`}
         src={src}
         loading="lazy"
+        onLoad={() => setIframeLoaded(true)}
         className="absolute inset-0 w-full h-full rounded-lg"
         style={{ border: 'none' }}
         allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
         allowFullScreen
       />
+      {!iframeLoaded && !loadFailed && (
+        <div className="absolute inset-0 flex items-center justify-center bg-navy-900 rounded-lg">
+          <Spinner size="lg" />
+        </div>
+      )}
+      {!iframeLoaded && loadFailed && <MediaFallback variant="video" />}
     </div>
   )
 }

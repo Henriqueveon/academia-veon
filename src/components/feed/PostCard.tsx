@@ -8,6 +8,8 @@ import { ShareMenu } from './ShareMenu'
 import { UploadingMedia } from './UploadingMedia'
 import { MediaFallback } from './MediaFallback'
 import { usePostReady } from '../../hooks/usePostReady'
+import { Spinner } from '../ui/Spinner'
+import { MediaWithSpinner } from '../ui/MediaWithSpinner'
 
 interface Props {
   post: any
@@ -311,13 +313,15 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
           onClick={() => navigate(`/perfil/${post.user_id}`)}
           className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left flex-1 min-w-0"
         >
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-navy-900 flex items-center justify-center flex-shrink-0">
-            {post.author.avatar_url ? (
-              <img src={post.author.avatar_url} alt="" loading="lazy" className="w-full h-full object-cover" />
-            ) : (
-              <User className="w-5 h-5 text-text-muted" />
-            )}
-          </div>
+          <MediaWithSpinner
+            src={post.author.avatar_url}
+            alt=""
+            loading="lazy"
+            className="w-full h-full object-cover"
+            containerClassName="w-10 h-10 rounded-full overflow-hidden bg-navy-900 flex-shrink-0"
+            spinnerSize="sm"
+            fallback={<User className="w-5 h-5 text-text-muted" />}
+          />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-text-primary truncate">{post.author.name}</p>
             <div className="flex items-center gap-1.5 text-xs text-text-muted truncate">
@@ -426,7 +430,9 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
             )}
             {/* Skeleton overlay until first media loads (fades out on ready) */}
             {showSkeleton && !errored && (
-              <div className="absolute inset-0 bg-navy-800 animate-pulse z-5" />
+              <div className="absolute inset-0 bg-navy-800 animate-pulse z-5 flex items-center justify-center">
+                <Spinner size="md" />
+              </div>
             )}
           </>
         )}
