@@ -1,23 +1,45 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
 
+// Upload de imagens (avatar, capa, etc) direto pro R2 via presigned URL
+// Mantém a mesma API do hook antigo (uploadImage + uploading) para não
+// quebrar os componentes que já usam este hook.
 export function useImageUpload() {
   const [uploading, setUploading] = useState(false)
 
   async function uploadImage(file: File, folder: string): Promise<string | null> {
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop()
-      const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const contentType = file.type || 'image/jpeg'
 
-      const { error } = await supabase.storage
-        .from('thumbnails')
-        .upload(fileName, file, { cacheControl: '3600', upsert: false })
+      // 1. Pede a presigned URL à nossa função serverless
+      const signRes = await fetch('/api/r2/sign-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder, contentType, ext }),
+      })
 
-      if (error) throw error
+      if (!signRes.ok) {
+        const errText = await signRes.text().catch(() => '')
+        console.error('Sign URL failed:', signRes.status, errText)
+        return null
+      }
 
-      const { data } = supabase.storage.from('thumbnails').getPublicUrl(fileName)
-      return data.publicUrl
+      const { uploadUrl, publicUrl } = await signRes.json()
+
+      // 2. Upload direto pro R2
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': contentType },
+        body: file,
+      })
+
+      if (!putRes.ok) {
+        console.error('R2 upload failed:', putRes.status)
+        return null
+      }
+
+      return publicUrl as string
     } catch (err) {
       console.error('Upload failed:', err)
       return null
