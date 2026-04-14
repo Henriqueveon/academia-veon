@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic, Eye, UserPlus, UserCheck, Volume2, VolumeX } from 'lucide-react'
+import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic, Eye, UserPlus, UserCheck, Volume2, VolumeX, Shield, ShieldOff, ShieldAlert, X as XIcon } from 'lucide-react'
 import { ShareMenu } from './ShareMenu'
+import { LikesModal } from './LikesModal'
 import { UploadingMedia } from './UploadingMedia'
 import { MediaFallback } from './MediaFallback'
 import { usePostReady } from '../../hooks/usePostReady'
@@ -18,7 +19,7 @@ interface Props {
 }
 
 function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [currentPage, setCurrentPage] = useState(0)
@@ -27,9 +28,14 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [showShare, setShowShare] = useState(false)
+  const [showLikes, setShowLikes] = useState(false)
+  const [showBlockModal, setShowBlockModal] = useState(false)
+  const [blockReason, setBlockReason] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
 
   const isOwn = post.user_id === user?.id
+  const isGestor = profile?.role === 'gestor'
+  const isBlocked = !!post.blocked_at
 
   // Gating: skeleton until first media loads (or 4s failsafe).
   // Audio/in-flight uploading posts skip the gate (audio is metadata-only,
@@ -261,6 +267,48 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
     },
   })
 
+  // Block post (gestor only)
+  const blockPost = useMutation({
+    mutationFn: async (reason: string) => {
+      const { error } = await supabase.rpc('block_post', {
+        target_post_id: post.id,
+        block_reason: reason,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      updatePostInCache((p: any) => ({
+        ...p,
+        blocked_at: new Date().toISOString(),
+        blocked_by: user!.id,
+        blocked_reason: blockReason,
+        blocked_by_profile: { name: profile?.name || 'Gestor' },
+      }))
+      setShowBlockModal(false)
+      setBlockReason('')
+      queryClient.invalidateQueries({ queryKey: feedKey })
+    },
+  })
+
+  // Unblock post (gestor only)
+  const unblockPost = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('unblock_post', {
+        target_post_id: post.id,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      updatePostInCache((p: any) => ({
+        ...p,
+        blocked_at: null,
+        blocked_by: null,
+        blocked_reason: null,
+      }))
+      queryClient.invalidateQueries({ queryKey: feedKey })
+    },
+  })
+
   function handleSubmitComment() {
     const text = newComment.trim()
     if (!text) return
@@ -365,25 +413,59 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
               </button>
             </>
           )}
-          {isOwn && (
+          {(isOwn || isGestor) && (
             <div className="relative">
               <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-text-muted hover:text-text-primary">
                 <MoreHorizontal className="w-4 h-4" />
               </button>
               {showMenu && (
-                <div className="absolute right-0 top-9 bg-bg-input border border-navy-700 rounded-lg p-1 z-10 min-w-[120px]">
-                  <button
-                    onClick={() => { if (confirm('Excluir este post?')) deletePost.mutate() }}
-                    className="w-full flex items-center gap-2 text-xs text-red-veon hover:bg-red-900/20 px-3 py-2 rounded"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Excluir post
-                  </button>
+                <div className="absolute right-0 top-9 bg-bg-input border border-navy-700 rounded-lg p-1 z-10 min-w-[170px]">
+                  {/* Gestor block/unblock (hide on your own post) */}
+                  {isGestor && !isOwn && !isBlocked && (
+                    <button
+                      onClick={() => { setShowMenu(false); setShowBlockModal(true) }}
+                      className="w-full flex items-center gap-2 text-xs text-orange-400 hover:bg-orange-900/20 px-3 py-2 rounded"
+                    >
+                      <Shield className="w-3.5 h-3.5" /> Bloquear post
+                    </button>
+                  )}
+                  {isGestor && !isOwn && isBlocked && (
+                    <button
+                      onClick={() => { setShowMenu(false); if (confirm('Desbloquear este post?')) unblockPost.mutate() }}
+                      className="w-full flex items-center gap-2 text-xs text-green-400 hover:bg-green-900/20 px-3 py-2 rounded"
+                    >
+                      <ShieldOff className="w-3.5 h-3.5" /> Desbloquear post
+                    </button>
+                  )}
+                  {isOwn && (
+                    <button
+                      onClick={() => { if (confirm('Excluir este post?')) deletePost.mutate() }}
+                      className="w-full flex items-center gap-2 text-xs text-red-veon hover:bg-red-900/20 px-3 py-2 rounded"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir post
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Blocked banner — only gestor sees this (RLS hides from everyone else) */}
+      {isBlocked && isGestor && (
+        <div className="bg-red-veon/90 text-white px-4 py-2 flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+          <div className="flex-1 min-w-0 text-xs">
+            <p className="font-semibold truncate">
+              Post bloqueado{post.blocked_by_profile?.name ? ` por ${post.blocked_by_profile.name}` : ''}
+            </p>
+            {post.blocked_reason && (
+              <p className="opacity-90 truncate">Motivo: {post.blocked_reason}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Carousel */}
       <div className={`relative bg-navy-900 ${isAudioOnly ? 'px-4 py-3' : 'aspect-[4/5]'}`}>
@@ -473,13 +555,23 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
       {/* Actions — hidden while the post is not public */}
       {post.status !== 'uploading' && post.status !== 'failed' && (
         <div className="px-4 pt-3 pb-2 flex items-center gap-5">
-          <button
-            onClick={() => toggleLike.mutate()}
-            className="flex items-center gap-1.5 text-text-secondary hover:scale-110 transition-transform"
-          >
-            <Heart className={`w-6 h-6 ${post.likedByMe ? 'fill-red-veon text-red-veon' : ''}`} />
-            <span className="text-sm font-semibold text-text-primary">{post.likesCount}</span>
-          </button>
+          <div className="flex items-center gap-1.5 text-text-secondary">
+            <button
+              onClick={() => toggleLike.mutate()}
+              className="hover:scale-110 transition-transform"
+              title={post.likedByMe ? 'Descurtir' : 'Curtir'}
+            >
+              <Heart className={`w-6 h-6 ${post.likedByMe ? 'fill-red-veon text-red-veon' : ''}`} />
+            </button>
+            <button
+              onClick={() => post.likesCount > 0 && setShowLikes(true)}
+              disabled={post.likesCount === 0}
+              className="text-sm font-semibold text-text-primary hover:underline disabled:no-underline disabled:cursor-default"
+              title={post.likesCount > 0 ? 'Ver quem curtiu' : undefined}
+            >
+              {post.likesCount}
+            </button>
+          </div>
           <button
             onClick={() => setShowComments(!showComments)}
             className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary"
@@ -499,6 +591,58 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
       )}
 
       {showShare && <ShareMenu post={post} onClose={() => setShowShare(false)} />}
+
+      {showLikes && <LikesModal postId={post.id} onClose={() => setShowLikes(false)} />}
+
+      {/* Block post modal (gestor only) */}
+      {showBlockModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setShowBlockModal(false)}>
+          <div className="bg-bg-card border border-navy-800 rounded-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-navy-800">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-red-veon" />
+                <h2 className="text-lg font-semibold text-text-primary">Bloquear post</h2>
+              </div>
+              <button onClick={() => setShowBlockModal(false)} className="text-text-muted hover:text-text-primary">
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-text-muted">
+                O post será removido da comunidade. O autor receberá uma notificação com o motivo.
+              </p>
+              <div>
+                <label className="block text-sm text-text-secondary mb-1.5">Motivo do bloqueio</label>
+                <textarea
+                  value={blockReason}
+                  onChange={(e) => setBlockReason(e.target.value)}
+                  rows={3}
+                  autoFocus
+                  maxLength={500}
+                  className="w-full bg-bg-input border border-navy-700 rounded-lg px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-red-veon resize-none"
+                  placeholder="Ex: Conteúdo inadequado, spam, ofensivo..."
+                />
+                <p className="text-xs text-text-muted mt-1">{blockReason.length}/500</p>
+              </div>
+              {blockPost.isError && (
+                <p className="text-red-veon text-xs">{(blockPost.error as Error).message}</p>
+              )}
+            </div>
+            <div className="p-4 border-t border-navy-800 flex gap-2">
+              <button onClick={() => setShowBlockModal(false)} className="flex-1 bg-bg-input text-text-secondary hover:text-text-primary py-2.5 rounded-lg text-sm">
+                Cancelar
+              </button>
+              <button
+                onClick={() => blockPost.mutate(blockReason.trim())}
+                disabled={!blockReason.trim() || blockPost.isPending}
+                className="flex-1 bg-red-veon hover:bg-red-veon-dark text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50"
+              >
+                {blockPost.isPending ? 'Bloqueando...' : 'Confirmar bloqueio'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Caption */}
       {post.caption && (

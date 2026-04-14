@@ -2,10 +2,11 @@ import { useState, useRef, useEffect } from 'react'
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Plus, RefreshCw } from 'lucide-react'
+import { Plus, RefreshCw, Users } from 'lucide-react'
 import { CreatePostWizard } from '../../components/feed/CreatePostWizard'
 import { PostCard } from '../../components/feed/PostCard'
 import { NotificationsBell } from '../../components/feed/NotificationsBell'
+import { FriendsModal } from '../../components/feed/FriendsModal'
 import { saveCache, loadCache } from '../../lib/feedCache'
 import { useUploadStore } from '../../stores/uploadStore'
 import { useFeedReadyStore } from '../../stores/feedReadyStore'
@@ -100,6 +101,7 @@ export function FeedPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
+  const [showFriends, setShowFriends] = useState(false)
   const [pulling, setPulling] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const touchStartY = useRef<number | null>(null)
@@ -332,6 +334,13 @@ export function FeedPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowFriends(true)}
+            className="p-2.5 bg-bg-card border border-navy-800 hover:border-navy-600 text-text-secondary hover:text-text-primary rounded-lg transition-colors"
+            title="Comunidade"
+          >
+            <Users className="w-4 h-4" />
+          </button>
           <NotificationsBell />
           <button
             onClick={handleRefresh}
@@ -359,6 +368,8 @@ export function FeedPage() {
           }}
         />
       )}
+
+      {showFriends && <FriendsModal onClose={() => setShowFriends(false)} />}
 
       {/* Skeleton (initial load only when no cache) */}
       {isLoading && posts.length === 0 && (
