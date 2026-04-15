@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type ImgHTMLAttributes } from 'react'
+import { useState, useEffect, type ReactNode, type ImgHTMLAttributes } from 'react'
 import { Spinner } from './Spinner'
 
 interface Props extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'onLoad' | 'onError'> {
@@ -23,6 +23,10 @@ export function MediaWithSpinner({
   ...imgProps
 }: Props) {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>(src ? 'loading' : 'error')
+
+  useEffect(() => {
+    setStatus(src ? 'loading' : 'error')
+  }, [src])
 
   if (!src || status === 'error') {
     return <div className={`flex items-center justify-center ${containerClassName}`}>{fallback}</div>
