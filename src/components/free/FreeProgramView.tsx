@@ -69,14 +69,14 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
           <img src="/veon-logo.png" alt="Instituto Veon" className="h-[82px] object-contain" />
           <div className="w-full overflow-hidden">
             <div className="flex w-max animate-marquee-x">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <img
+              {Array.from({ length: 12 }).map((_, i) => (
+                <span
                   key={i}
-                  src="/escola-do-varejo.png"
-                  alt=""
                   aria-hidden={i > 0}
-                  className="h-7 object-contain mx-8 opacity-80 shrink-0"
-                />
+                  className="px-6 text-sm font-semibold tracking-[0.2em] text-white/80 uppercase shrink-0"
+                >
+                  A Escola do Varejo
+                </span>
               ))}
             </div>
           </div>
