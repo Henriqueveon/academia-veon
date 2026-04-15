@@ -108,6 +108,8 @@ export function FeedPage() {
   const [refreshing, setRefreshing] = useState(false)
   const touchStartY = useRef<number | null>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const mergeRef = useRef<() => Promise<void>>(async () => {})
+  const realtimeDebounceRef = useRef<number | null>(null)
 
   // Load cached first page synchronously for instant display
   const cachedFirstPage = loadCache<FeedPage>(CACHE_KEY)
@@ -129,7 +131,10 @@ export function FeedPage() {
     initialData: cachedFirstPage
       ? { pages: [cachedFirstPage], pageParams: [null] }
       : undefined,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 30,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   })
 
   // Persist first page to localStorage on every successful fetch
@@ -138,6 +143,33 @@ export function FeedPage() {
       saveCache(CACHE_KEY, data.pages[0])
     }
   }, [data])
+
+  // Realtime: listen for new/updated posts and pull them in without reload.
+  // Any INSERT or UPDATE on `posts` triggers a debounced merge of newer posts.
+  // This makes the feed update live when another student posts and their
+  // upload transitions to status='ready'.
+  useEffect(() => {
+    if (!user) return
+    const schedule = () => {
+      if (realtimeDebounceRef.current) {
+        window.clearTimeout(realtimeDebounceRef.current)
+      }
+      realtimeDebounceRef.current = window.setTimeout(() => {
+        mergeRef.current().catch(() => {})
+      }, 400)
+    }
+    const channel = supabase
+      .channel('feed-posts-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, schedule)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, schedule)
+      .subscribe()
+    return () => {
+      if (realtimeDebounceRef.current) {
+        window.clearTimeout(realtimeDebounceRef.current)
+      }
+      supabase.removeChannel(channel)
+    }
+  }, [user])
 
   // Cold-start scroll lock: only when there's NO cached first page.
   // Releases as soon as INITIAL_BUDGET posts mark themselves ready, or after the failsafe.
@@ -256,9 +288,13 @@ export function FeedPage() {
     if (!user) return
     setRefreshing(true)
     try {
-      // Find the most recent post we already have
+      // Use the most recent READY post as cutoff — NOT the absolute most recent,
+      // because an in-flight post of our own (status='uploading') would make us
+      // skip friends' ready posts that are older than our upload but newer than
+      // the last ready post in feed.
       const currentPosts = data?.pages.flatMap((p) => p.posts) || []
-      const mostRecentDate = currentPosts.length > 0 ? currentPosts[0].created_at : null
+      const mostRecentReady = currentPosts.find((p: any) => p.status === 'ready')
+      const mostRecentDate = mostRecentReady?.created_at || null
 
       if (!mostRecentDate) {
         // No existing posts — do a normal refetch
@@ -292,6 +328,10 @@ export function FeedPage() {
       setRefreshing(false)
     }
   }
+
+  // Keep the latest merge function reachable from the Realtime effect
+  // without re-subscribing on every render.
+  mergeRef.current = fetchNewerAndMerge
 
   async function handleTouchEnd() {
     if (pulling > 60) {

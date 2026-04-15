@@ -22,14 +22,38 @@ export function PublicPostPage() {
 
   const [post, setPost] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [status, setStatus] = useState<'idle' | 'processing' | 'missing'>('idle')
   const [currentPage, setCurrentPage] = useState(0)
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
     if (!postId) return
-    ;(async () => {
-      const { data } = await supabase.from('posts').select('*').eq('id', postId).eq('status', 'ready').single()
-      if (!data) { setLoading(false); return }
+    let cancelled = false
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+
+    async function load() {
+      // Fetch the post WITHOUT the status filter, so we can distinguish between
+      // "doesn't exist" and "still processing".
+      const { data } = await supabase.from('posts').select('*').eq('id', postId).maybeSingle()
+
+      if (cancelled) return
+
+      if (!data) {
+        setStatus('missing')
+        setLoading(false)
+        return
+      }
+
+      if (data.status !== 'ready') {
+        // Post exists but upload hasn't finished (or is failed). Show a
+        // "processando" state and auto-retry every 3s for up to ~60s.
+        setStatus('processing')
+        setLoading(false)
+        if (data.status === 'uploading' || data.status === 'processing') {
+          retryTimer = setTimeout(load, 3000)
+        }
+        return
+      }
 
       const [pagesRes, profileRes, likesRes, commentsRes] = await Promise.all([
         supabase.from('post_pages').select('*').eq('post_id', postId).order('sort_order'),
@@ -38,6 +62,8 @@ export function PublicPostPage() {
         supabase.from('post_comments').select('*', { count: 'exact', head: true }).eq('post_id', postId),
       ])
 
+      if (cancelled) return
+
       setPost({
         ...data,
         pages: pagesRes.data || [],
@@ -45,8 +71,16 @@ export function PublicPostPage() {
         likesCount: likesRes.count || 0,
         commentsCount: commentsRes.count || 0,
       })
+      setStatus('idle')
       setLoading(false)
-    })()
+    }
+
+    load()
+
+    return () => {
+      cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
+    }
   }, [postId])
 
   // If logged in, redirect to the real post view in the feed
@@ -86,16 +120,27 @@ export function PublicPostPage() {
   }
 
   if (!post) {
+    const isProcessing = status === 'processing'
     return (
       <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
-        <div className="text-center">
+        <div className="text-center max-w-sm">
           <GraduationCap className="w-12 h-12 text-red-veon mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-text-primary mb-2">Post não encontrado</h1>
+          <h1 className="text-2xl font-bold text-text-primary mb-2">
+            {isProcessing ? 'Post sendo publicado...' : 'Post não encontrado'}
+          </h1>
+          {isProcessing && (
+            <>
+              <p className="text-sm text-text-muted mb-4">
+                O autor acabou de publicar. Em instantes ele aparece aqui.
+              </p>
+              <div className="w-6 h-6 border-2 border-red-veon border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            </>
+          )}
           <button
-            onClick={() => navigate('/login')}
-            className="mt-4 bg-red-veon hover:bg-red-veon-dark text-white px-6 py-2.5 rounded-lg"
+            onClick={() => navigate(user ? '/comunidade' : '/login')}
+            className="mt-2 bg-red-veon hover:bg-red-veon-dark text-white px-6 py-2.5 rounded-lg"
           >
-            Ir para a Academia
+            {user ? 'Ir para o Feed' : 'Ir para a Academia'}
           </button>
         </div>
       </div>
