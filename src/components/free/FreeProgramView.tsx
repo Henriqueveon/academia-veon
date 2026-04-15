@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Lock, Unlock, Target, Users, TrendingUp, GraduationCap, PlayCircle } from 'lucide-react'
+import { Lock, Unlock, Target, Users, TrendingUp, PlayCircle } from 'lucide-react'
 import { VideoPlayer } from '../VideoPlayer'
 
 export interface FreeProgram {
