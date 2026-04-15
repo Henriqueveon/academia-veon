@@ -21,6 +21,11 @@ import { DashboardPage } from './pages/gestor/DashboardPage'
 import { CreditSettingsPage } from './pages/gestor/CreditSettingsPage'
 import { ProfilePage } from './pages/tripulante/ProfilePage'
 import { FeedPage } from './pages/tripulante/FeedPage'
+import { FreeProgramPage } from './pages/public/FreeProgramPage'
+import { FreeProgramsListPage } from './pages/tripulante/FreeProgramsListPage'
+import { FreeProgramWatchPage } from './pages/tripulante/FreeProgramWatchPage'
+import { FreeProgramsPage as GestorFreeProgramsPage } from './pages/gestor/FreeProgramsPage'
+import { FreeProgramEditPage } from './pages/gestor/FreeProgramEditPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,8 +48,11 @@ function App() {
             <Route path="/cadastro" element={<ViralSignupPage />} />
             <Route path="/cadastro/:slug" element={<RegisterPage />} />
             <Route path="/p/:postId" element={<PublicPostPage />} />
+            <Route path="/programas/:slug" element={<FreeProgramPage />} />
             <Route element={<AppLayout />}>
               <Route path="/treinamentos" element={<TrainingListPage />} />
+              <Route path="/programas-gratuitos" element={<FreeProgramsListPage />} />
+              <Route path="/programas-gratuitos/:slug" element={<FreeProgramWatchPage />} />
               <Route path="/treinamentos/:id" element={<TrainingPage />} />
               <Route path="/perfil" element={<ProfilePage />} />
               <Route path="/perfil/:userId" element={<ProfilePage />} />
@@ -60,6 +68,8 @@ function App() {
                 <Route path="/gestor/liberacoes" element={<AccessPage />} />
                 <Route path="/gestor/links-cadastro" element={<RegistrationLinksPage />} />
                 <Route path="/gestor/creditos" element={<CreditSettingsPage />} />
+                <Route path="/gestor/programas" element={<GestorFreeProgramsPage />} />
+                <Route path="/gestor/programas/:id" element={<FreeProgramEditPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/comunidade" replace />} />

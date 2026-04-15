@@ -121,6 +121,82 @@ export interface Database {
           created_at?: string
         }
       }
+      free_programs: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          subtitle: string | null
+          episodes_badge: string | null
+          objective_title: string | null
+          objective_card1_text: string | null
+          objective_card2_text: string | null
+          objective_card3_text: string | null
+          partner1_name: string | null
+          partner1_role: string | null
+          partner1_bio: string | null
+          partner1_photo_url: string | null
+          partner2_name: string | null
+          partner2_role: string | null
+          partner2_bio: string | null
+          partner2_photo_url: string | null
+          cta_button_text: string | null
+          cta_button_url: string | null
+          webhook_url: string | null
+          published: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          subtitle?: string | null
+          episodes_badge?: string | null
+          objective_title?: string | null
+          objective_card1_text?: string | null
+          objective_card2_text?: string | null
+          objective_card3_text?: string | null
+          partner1_name?: string | null
+          partner1_role?: string | null
+          partner1_bio?: string | null
+          partner1_photo_url?: string | null
+          partner2_name?: string | null
+          partner2_role?: string | null
+          partner2_bio?: string | null
+          partner2_photo_url?: string | null
+          cta_button_text?: string | null
+          cta_button_url?: string | null
+          webhook_url?: string | null
+          published?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['free_programs']['Insert']>
+      }
+      free_program_lessons: {
+        Row: {
+          id: string
+          program_id: string
+          title: string
+          subtitle: string | null
+          bunny_video_id: string | null
+          bunny_library_id: string | null
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          program_id: string
+          title: string
+          subtitle?: string | null
+          bunny_video_id?: string | null
+          bunny_library_id?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['free_program_lessons']['Insert']>
+      }
       lesson_progress: {
         Row: {
           user_id: string
@@ -160,3 +236,5 @@ export type Group = Database['public']['Tables']['groups']['Row']
 export type Module = Database['public']['Tables']['modules']['Row']
 export type Lesson = Database['public']['Tables']['lessons']['Row']
 export type LessonProgress = Database['public']['Tables']['lesson_progress']['Row']
+export type FreeProgram = Database['public']['Tables']['free_programs']['Row']
+export type FreeProgramLesson = Database['public']['Tables']['free_program_lessons']['Row']

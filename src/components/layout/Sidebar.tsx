@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { GraduationCap, LogOut, Settings, Users, BookOpen, Layers, Shield, BarChart3, Link2, LayoutDashboard, UserCircle, MessagesSquare, Wallet } from 'lucide-react'
+import { GraduationCap, LogOut, Settings, Users, BookOpen, Layers, Shield, BarChart3, Link2, LayoutDashboard, UserCircle, MessagesSquare, Wallet, Gift, PlayCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 export function Sidebar() {
@@ -11,6 +11,7 @@ export function Sidebar() {
   const tripulanteLinks = [
     { path: '/comunidade', label: 'Feed', icon: MessagesSquare },
     { path: '/treinamentos', label: 'Treinamentos', icon: BookOpen },
+    { path: '/programas-gratuitos', label: 'Programas Educacionais', icon: PlayCircle },
     { path: '/perfil', label: 'Meu Perfil', icon: UserCircle },
     { path: '/creditos', label: 'Meus Créditos', icon: Wallet },
   ]
@@ -23,6 +24,7 @@ export function Sidebar() {
     { path: '/gestor/engajamento', label: 'Engajamento', icon: BarChart3 },
     { path: '/gestor/liberacoes', label: 'Liberações', icon: Settings },
     { path: '/gestor/links-cadastro', label: 'Links de Cadastro', icon: Link2 },
+    { path: '/gestor/programas', label: 'Programas Educacionais', icon: Gift },
     { path: '/gestor/creditos', label: 'Créditos', icon: Wallet },
   ]
 

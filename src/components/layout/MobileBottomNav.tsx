@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   MessagesSquare, BookOpen, UserCircle, LayoutDashboard, Menu, X, LogOut,
-  Users, Shield, BarChart3, Settings, Link2, Layers, Wallet
+  Users, Shield, BarChart3, Settings, Link2, Layers, Wallet, PlayCircle, Gift
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -34,6 +34,7 @@ export function MobileBottomNav() {
     { path: '/gestor/engajamento', label: 'Engajamento', icon: BarChart3 },
     { path: '/gestor/liberacoes', label: 'Liberações', icon: Settings },
     { path: '/gestor/links-cadastro', label: 'Links de Cadastro', icon: Link2 },
+    { path: '/gestor/programas', label: 'Programas Educacionais', icon: Gift },
     { path: '/gestor/creditos', label: 'Créditos', icon: Wallet },
     { path: '/treinamentos', label: 'Ver como aluno', icon: BookOpen },
   ]
@@ -143,7 +144,18 @@ export function MobileBottomNav() {
 
             {/* Tripulante extras */}
             {!isGestor && (
-              <div className="p-3">
+              <div className="p-3 space-y-1">
+                <button
+                  onClick={() => handleNavigate('/programas-gratuitos')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors ${
+                    isActive('/programas-gratuitos')
+                      ? 'bg-navy-900 text-red-veon'
+                      : 'text-text-secondary hover:bg-bg-card hover:text-text-primary'
+                  }`}
+                >
+                  <PlayCircle className="w-5 h-5" />
+                  Programas Educacionais
+                </button>
                 <button
                   onClick={() => handleNavigate('/creditos')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors ${
