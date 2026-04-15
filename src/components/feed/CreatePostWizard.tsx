@@ -38,7 +38,9 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
   const [currentPage, setCurrentPage] = useState(0)
   const [caption, setCaption] = useState('')
   const [linkUrl, setLinkUrl] = useState('')
+  const [linkCta, setLinkCta] = useState('')
   const [linkError, setLinkError] = useState<string | null>(null)
+  const CTA_MAX = 30
 
   function normalizeLink(raw: string): string | null {
     const trimmed = raw.trim()
@@ -133,7 +135,13 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
       // 3. Create the real posts row (status defaults to 'uploading').
       const { data: post, error: postErr } = await supabase
         .from('posts')
-        .insert({ user_id: user.id, caption: caption.trim() || null, status: 'uploading', link_url: normalizedLink })
+        .insert({
+          user_id: user.id,
+          caption: caption.trim() || null,
+          status: 'uploading',
+          link_url: normalizedLink,
+          link_cta: normalizedLink ? (linkCta.trim() || null) : null,
+        })
         .select()
         .single()
       if (postErr || !post) throw postErr || new Error('Falha ao criar post')
@@ -159,6 +167,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
       const cachedPost = {
         ...post,
         link_url: normalizedLink,
+        link_cta: normalizedLink ? (linkCta.trim() || null) : null,
         author: {
           name: currentProfile?.name || 'Você',
           avatar_url: currentProfile?.avatar_url || null,
@@ -353,7 +362,24 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
                     placeholder="https://exemplo.com"
                   />
                   {linkError && <p className="mt-1 text-xs text-red-veon">{linkError}</p>}
-                  <p className="mt-1 text-xs text-text-muted">Usuários que clicarem no post serão redirecionados para este endereço.</p>
+                  <p className="mt-1 text-xs text-text-muted">Usuários que clicarem no botão serão redirecionados para este endereço.</p>
+
+                  {linkUrl.trim() && (
+                    <div className="mt-3">
+                      <div className="flex justify-between mb-1">
+                        <label className="text-xs text-text-muted">Texto do botão (CTA)</label>
+                        <span className="text-xs text-text-muted">{linkCta.length}/{CTA_MAX}</span>
+                      </div>
+                      <input
+                        type="text"
+                        value={linkCta}
+                        onChange={(e) => { if (e.target.value.length <= CTA_MAX) setLinkCta(e.target.value) }}
+                        className="w-full bg-bg-input border border-navy-700 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-red-veon"
+                        placeholder="Ex: Saiba mais"
+                      />
+                      <p className="mt-1 text-xs text-text-muted">Se vazio, será exibido "Saiba mais".</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

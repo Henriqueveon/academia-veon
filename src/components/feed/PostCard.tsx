@@ -552,6 +552,28 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
         )}
       </div>
 
+      {/* Sponsored-style CTA bar (gestor link) */}
+      {post.link_url && post.status !== 'uploading' && post.status !== 'failed' && (
+        <a
+          href={post.link_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group flex items-center justify-between gap-3 px-4 py-3 bg-navy-900/60 border-t border-navy-800 hover:bg-navy-800/60 transition-colors"
+          title={post.link_url}
+        >
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-semibold text-text-primary truncate">
+              {post.link_cta?.trim() || 'Saiba mais'}
+            </span>
+            <span className="text-xs text-text-muted truncate">{post.link_url}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-text-secondary group-hover:text-red-veon shrink-0">
+            <span className="text-xs font-medium">Abrir</span>
+            <ExternalLink className="w-4 h-4" />
+          </div>
+        </a>
+      )}
+
       {/* Actions — hidden while the post is not public */}
       {post.status !== 'uploading' && post.status !== 'failed' && (
         <div className="px-4 pt-3 pb-2 flex items-center gap-5">
@@ -657,22 +679,6 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
         </p>
       )}
 
-      {/* Link (gestor-only) */}
-      {post.link_url && (
-        <div className="px-4 pt-2">
-          <a
-            href={post.link_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-bg-input border border-navy-700 hover:border-red-veon rounded-lg px-3 py-2 text-sm text-text-primary hover:text-red-veon transition-colors truncate"
-            title={post.link_url}
-          >
-            <ExternalLink className="w-4 h-4 shrink-0" />
-            <span className="truncate">{post.link_url}</span>
-          </a>
-        </div>
-      )}
-
       {/* Comments toggle */}
       {post.commentsCount > 0 && !showComments && (
         <button
@@ -754,6 +760,7 @@ export const PostCard = memo(PostCardImpl, (prev, next) => {
     prev.post.likedByMe === next.post.likedByMe &&
     prev.post.caption === next.post.caption &&
     prev.post.link_url === next.post.link_url &&
+    prev.post.link_cta === next.post.link_cta &&
     prev.post.pages === next.post.pages &&
     prev.post.comments === next.post.comments
   )
