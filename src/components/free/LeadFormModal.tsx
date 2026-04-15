@@ -56,7 +56,7 @@ export function LeadFormModal({ open, onClose, onSubmit, webhookUrl, programSlug
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md bg-[#0F1F42] border-2 border-[#F26F2E] rounded-2xl p-6 md:p-8 relative"
+        className="w-full max-w-md bg-[#0F1F42] border-2 border-[#E63946] rounded-2xl p-6 md:p-8 relative"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -80,7 +80,7 @@ export function LeadFormModal({ open, onClose, onSubmit, webhookUrl, programSlug
             <input
               value={data.nome}
               onChange={(e) => setData(d => ({ ...d, nome: e.target.value }))}
-              className="w-full bg-[#0A1733] border border-[#F26F2E]/40 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#F26F2E]"
+              className="w-full bg-[#0A1733] border border-[#E63946]/40 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#E63946]"
               required
             />
           </div>
@@ -90,7 +90,7 @@ export function LeadFormModal({ open, onClose, onSubmit, webhookUrl, programSlug
               value={data.whatsapp}
               onChange={(e) => setData(d => ({ ...d, whatsapp: e.target.value }))}
               placeholder="(11) 99999-9999"
-              className="w-full bg-[#0A1733] border border-[#F26F2E]/40 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#F26F2E]"
+              className="w-full bg-[#0A1733] border border-[#E63946]/40 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#E63946]"
               required
             />
           </div>
@@ -100,7 +100,7 @@ export function LeadFormModal({ open, onClose, onSubmit, webhookUrl, programSlug
               type="email"
               value={data.email}
               onChange={(e) => setData(d => ({ ...d, email: e.target.value }))}
-              className="w-full bg-[#0A1733] border border-[#F26F2E]/40 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#F26F2E]"
+              className="w-full bg-[#0A1733] border border-[#E63946]/40 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#E63946]"
               required
             />
           </div>
@@ -110,7 +110,7 @@ export function LeadFormModal({ open, onClose, onSubmit, webhookUrl, programSlug
               value={data.instagram}
               onChange={(e) => setData(d => ({ ...d, instagram: e.target.value }))}
               placeholder="@seuinsta"
-              className="w-full bg-[#0A1733] border border-[#F26F2E]/40 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#F26F2E]"
+              className="w-full bg-[#0A1733] border border-[#E63946]/40 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#E63946]"
             />
           </div>
 
@@ -119,7 +119,7 @@ export function LeadFormModal({ open, onClose, onSubmit, webhookUrl, programSlug
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#F26F2E] hover:bg-[#d95f22] text-white font-semibold px-5 py-3 rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full bg-[#E63946] hover:bg-[#c62f3b] text-white font-semibold px-5 py-3 rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             Desbloquear aulas

@@ -56,13 +56,10 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
   }
 
   return (
-    <div className="min-h-screen bg-[#0A1733] text-white">
+    <div className="min-h-screen bg-gradient-to-br from-[#050D20] via-[#0A1733] to-[#1E3A5F] text-white">
       {/* Topo / logo */}
       <header className="w-full py-5 px-4 md:px-10 flex items-center justify-center md:justify-start border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <GraduationCap className="w-7 h-7 text-[#F26F2E]" />
-          <span className="text-lg font-bold tracking-tight">Academia Veon</span>
-        </div>
+        <img src="/veon-logo.png" alt="Instituto Veon" className="h-12 object-contain" />
       </header>
 
       {/* Hero */}
@@ -79,7 +76,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
           {/* Player */}
           <div className="relative">
-            <div className="bg-[#0F1F42] border border-[#F26F2E]/30 rounded-xl overflow-hidden">
+            <div className="bg-[#0F1F42]/80 backdrop-blur-sm border border-[#E63946]/30 rounded-xl overflow-hidden">
               {active?.bunny_video_id ? (
                 <div className="relative">
                   <VideoPlayer
@@ -91,7 +88,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
                       className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer"
                       onClick={onRequestUnlock}
                     >
-                      <Lock className="w-14 h-14 text-[#F26F2E] mb-3" />
+                      <Lock className="w-14 h-14 text-[#E63946] mb-3" />
                       <p className="text-white font-semibold text-lg">Conteúdo bloqueado</p>
                       <p className="text-[#B8C0D0] text-sm mt-1">Clique para desbloquear suas aulas</p>
                     </div>
@@ -112,10 +109,10 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
           </div>
 
           {/* Lista de aulas */}
-          <aside className="bg-[#0F1F42] border border-[#F26F2E]/30 rounded-xl p-4">
+          <aside className="bg-[#0F1F42]/80 backdrop-blur-sm border border-[#E63946]/30 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm uppercase tracking-wider text-[#B8C0D0]">Aulas</span>
-              <span className="text-xs bg-[#F26F2E] text-white px-2 py-0.5 rounded-full font-semibold">
+              <span className="text-xs bg-[#E63946] text-white px-2 py-0.5 rounded-full font-semibold">
                 {program.episodes_badge || `${total} episódios`}
               </span>
             </div>
@@ -128,13 +125,13 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
                       onClick={() => handleSelect(idx)}
                       className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors flex items-start gap-3 ${
                         isActive
-                          ? 'bg-[#F26F2E]/10 border-[#F26F2E]'
-                          : 'border-white/10 hover:border-[#F26F2E]/50 hover:bg-[#F26F2E]/5'
+                          ? 'bg-[#E63946]/10 border-[#E63946]'
+                          : 'border-white/10 hover:border-[#E63946]/50 hover:bg-[#E63946]/5'
                       }`}
                     >
                       <div className="mt-0.5">
                         {unlocked ? (
-                          <Unlock className="w-4 h-4 text-[#F26F2E]" />
+                          <Unlock className="w-4 h-4 text-[#E63946]" />
                         ) : (
                           <Lock className="w-4 h-4 text-[#B8C0D0]" />
                         )}
@@ -178,9 +175,9 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
               return (
                 <div
                   key={i}
-                  className="bg-[#0F1F42] border-[1.5px] border-[#F26F2E] rounded-xl p-6 flex flex-col items-center text-center"
+                  className="bg-[#0F1F42]/80 backdrop-blur-sm border-[1.5px] border-[#E63946] rounded-xl p-6 flex flex-col items-center text-center"
                 >
-                  <div className="w-14 h-14 rounded-full bg-[#F26F2E] flex items-center justify-center mb-4">
+                  <div className="w-14 h-14 rounded-full bg-[#E63946] flex items-center justify-center mb-4">
                     <Icon className="w-7 h-7 text-white" />
                   </div>
                   <p className="text-[#B8C0D0] text-sm leading-relaxed">{card.text}</p>
@@ -194,7 +191,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
                 href={program.cta_button_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-[#F26F2E] hover:bg-[#d95f22] text-white font-semibold px-8 py-3.5 rounded-lg transition-colors"
+                className="bg-[#E63946] hover:bg-[#c62f3b] text-white font-semibold px-8 py-3.5 rounded-lg transition-colors"
               >
                 {program.cta_button_text}
               </a>
@@ -217,7 +214,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
               p.name ? (
                 <div
                   key={i}
-                  className="bg-[#0F1F42] border-[1.5px] border-[#F26F2E] rounded-xl overflow-hidden flex flex-col"
+                  className="bg-[#0F1F42]/80 backdrop-blur-sm border-[1.5px] border-[#E63946] rounded-xl overflow-hidden flex flex-col"
                 >
                   {p.photo ? (
                     <img
@@ -231,7 +228,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
                     </div>
                   )}
                   <div className="p-5">
-                    <h3 className="text-xl font-bold text-[#F26F2E]">{p.name}</h3>
+                    <h3 className="text-xl font-bold text-[#E63946]">{p.name}</h3>
                     {p.role && <p className="text-white font-medium mt-1">{p.role}</p>}
                     {p.bio && <p className="text-[#B8C0D0] text-sm mt-3 leading-relaxed">{p.bio}</p>}
                   </div>
@@ -245,7 +242,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
                 href={program.cta_button_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-[#F26F2E] hover:bg-[#d95f22] text-white font-semibold px-8 py-3.5 rounded-lg transition-colors"
+                className="bg-[#E63946] hover:bg-[#c62f3b] text-white font-semibold px-8 py-3.5 rounded-lg transition-colors"
               >
                 {program.cta_button_text}
               </a>
@@ -256,12 +253,9 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
 
       {/* Footer */}
       <footer className="border-t border-white/5 py-8 mt-6">
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2">
-            <GraduationCap className="w-6 h-6 text-[#F26F2E]" />
-            <span className="font-bold text-white">Academia Veon</span>
-          </div>
-          <p className="text-xs text-[#B8C0D0]">© Academia Veon</p>
+        <div className="flex flex-col items-center gap-3">
+          <img src="/veon-logo.png" alt="Instituto Veon" className="h-10 object-contain" />
+          <p className="text-xs text-[#B8C0D0]">© Instituto Veon</p>
         </div>
       </footer>
     </div>
