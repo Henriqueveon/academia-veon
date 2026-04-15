@@ -558,18 +558,14 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
           href={post.link_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="group flex items-center justify-between gap-3 px-4 py-3 bg-navy-900/60 border-t border-navy-800 hover:bg-navy-800/60 transition-colors"
-          title={post.link_url}
+          className="group flex items-center justify-between gap-3 px-4 py-3 bg-gradient-to-r from-red-veon via-red-veon-dark to-navy-800 hover:from-red-veon hover:via-red-veon hover:to-navy-700 transition-colors shadow-inner"
         >
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold text-text-primary truncate">
-              {post.link_cta?.trim() || 'Saiba mais'}
-            </span>
-            <span className="text-xs text-text-muted truncate">{post.link_url}</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-text-secondary group-hover:text-red-veon shrink-0">
-            <span className="text-xs font-medium">Abrir</span>
-            <ExternalLink className="w-4 h-4" />
+          <span className="text-sm font-bold text-white uppercase tracking-wide truncate drop-shadow">
+            {post.link_cta?.trim() || 'Saiba mais'}
+          </span>
+          <div className="flex items-center gap-1.5 text-white/90 group-hover:text-white shrink-0 bg-black/20 group-hover:bg-black/30 rounded-full px-3 py-1 transition-colors">
+            <span className="text-xs font-semibold">Abrir</span>
+            <ExternalLink className="w-3.5 h-3.5" />
           </div>
         </a>
       )}
