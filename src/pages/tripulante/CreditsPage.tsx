@@ -49,20 +49,40 @@ export function CreditsPage() {
     enabled: !!user,
   })
 
-  // Lista de cadastros feitos pelo seu link
+  // Lista de cadastros feitos pelo seu link, com o valor REAL creditado
+  // (cruzando profiles com credit_transactions do tipo 'referral' por ordem cronológica).
   const { data: referrals = [] } = useQuery({
     queryKey: ['my-referrals', user?.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, name, avatar_url, created_at')
-        .eq('referred_by', user!.id)
-        .order('created_at', { ascending: false })
-      return data || []
+      const [{ data: profs }, { data: txs }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, name, avatar_url, created_at')
+          .eq('referred_by', user!.id)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('credit_transactions')
+          .select('amount, created_at')
+          .eq('user_id', user!.id)
+          .eq('type', 'referral')
+          .order('created_at', { ascending: true }),
+      ])
+      const profiles = profs || []
+      const transactions = txs || []
+      // Pareia por índice (mesma ordem cronológica). Para itens sem tx, usa null.
+      const enriched = profiles.map((p: any, i: number) => ({
+        ...p,
+        credited_amount: transactions[i] ? Number(transactions[i].amount) : null,
+      }))
+      return enriched.reverse() // exibe mais recente primeiro
     },
     enabled: !!user,
   })
   const referralsCount = referrals.length
+  const totalReferralEarnings = referrals.reduce(
+    (sum: number, r: any) => sum + (r.credited_amount || 0),
+    0,
+  )
 
   // Cursos disponíveis para resgate (com preço definido)
   const { data: redeemableCourses = [] } = useQuery({
@@ -173,7 +193,7 @@ export function CreditsPage() {
           </div>
           <div className="text-center">
             <p className="text-2xl font-bold text-green-400">
-              {formatBRL(referralsCount * referralBonus)}
+              {formatBRL(totalReferralEarnings)}
             </p>
             <p className="text-xs text-text-muted">ganhos por indicação</p>
           </div>
@@ -200,7 +220,9 @@ export function CreditsPage() {
                       {new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
-                  <span className="text-xs font-semibold text-green-400 flex-shrink-0">+{formatBRL(referralBonus)}</span>
+                  <span className="text-xs font-semibold text-green-400 flex-shrink-0">
+                    {r.credited_amount != null ? `+${formatBRL(r.credited_amount)}` : ''}
+                  </span>
                 </div>
               ))}
             </div>
