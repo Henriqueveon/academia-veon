@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic, Eye, UserPlus, UserCheck, Volume2, VolumeX, Shield, ShieldOff, ShieldAlert, X as XIcon } from 'lucide-react'
+import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic, Eye, UserPlus, UserCheck, Volume2, VolumeX, Shield, ShieldOff, ShieldAlert, X as XIcon, ExternalLink } from 'lucide-react'
 import { ShareMenu } from './ShareMenu'
 import { LikesModal } from './LikesModal'
 import { UploadingMedia } from './UploadingMedia'
@@ -657,6 +657,22 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
         </p>
       )}
 
+      {/* Link (gestor-only) */}
+      {post.link_url && (
+        <div className="px-4 pt-2">
+          <a
+            href={post.link_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-bg-input border border-navy-700 hover:border-red-veon rounded-lg px-3 py-2 text-sm text-text-primary hover:text-red-veon transition-colors truncate"
+            title={post.link_url}
+          >
+            <ExternalLink className="w-4 h-4 shrink-0" />
+            <span className="truncate">{post.link_url}</span>
+          </a>
+        </div>
+      )}
+
       {/* Comments toggle */}
       {post.commentsCount > 0 && !showComments && (
         <button
@@ -737,6 +753,7 @@ export const PostCard = memo(PostCardImpl, (prev, next) => {
     prev.post.sharesCount === next.post.sharesCount &&
     prev.post.likedByMe === next.post.likedByMe &&
     prev.post.caption === next.post.caption &&
+    prev.post.link_url === next.post.link_url &&
     prev.post.pages === next.post.pages &&
     prev.post.comments === next.post.comments
   )

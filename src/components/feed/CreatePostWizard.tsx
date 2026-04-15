@@ -6,7 +6,7 @@ import { generateVideoThumbnail } from '../../lib/videoThumbnail'
 import { compressImage } from '../../lib/imageCompression'
 import { useQueryClient } from '@tanstack/react-query'
 import { startPostUpload, type UploadTarget } from '../../lib/postUploadManager'
-import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause } from 'lucide-react'
+import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause, Link as LinkIcon } from 'lucide-react'
 
 const CAPTION_MAX = 500
 const MAX_PAGES = 5
@@ -28,14 +28,30 @@ interface Props {
 }
 
 export function CreatePostWizard({ onClose, onCreated }: Props) {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const queryClient = useQueryClient()
+  const isGestor = profile?.role === 'gestor'
 
   const [step, setStep] = useState<'type' | 'pages' | 'caption'>('type')
   const [postType, setPostType] = useState<MediaType | null>(null)
   const [pages, setPages] = useState<PageData[]>([])
   const [currentPage, setCurrentPage] = useState(0)
   const [caption, setCaption] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkError, setLinkError] = useState<string | null>(null)
+
+  function normalizeLink(raw: string): string | null {
+    const trimmed = raw.trim()
+    if (!trimmed) return null
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+    try {
+      const u = new URL(withScheme)
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
+      return u.toString()
+    } catch {
+      return null
+    }
+  }
 
   function selectType(type: MediaType) {
     setPostType(type)
@@ -69,6 +85,16 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
   // in a detached manager. Post is invisible to others until status flips to 'ready'.
   async function submit() {
     if (!user || !canProceed()) return
+
+    let normalizedLink: string | null = null
+    if (isGestor && linkUrl.trim()) {
+      normalizedLink = normalizeLink(linkUrl)
+      if (!normalizedLink) {
+        setLinkError('Link inválido. Use um endereço como https://exemplo.com')
+        return
+      }
+    }
+    setLinkError(null)
 
     try {
       // 1a. Compress images client-side (WebP @0.85, max 1920px) so we send less to R2.
@@ -107,7 +133,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
       // 3. Create the real posts row (status defaults to 'uploading').
       const { data: post, error: postErr } = await supabase
         .from('posts')
-        .insert({ user_id: user.id, caption: caption.trim() || null, status: 'uploading' })
+        .insert({ user_id: user.id, caption: caption.trim() || null, status: 'uploading', link_url: normalizedLink })
         .select()
         .single()
       if (postErr || !post) throw postErr || new Error('Falha ao criar post')
@@ -132,6 +158,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
       const feedKey = ['feed-posts', user.id]
       const cachedPost = {
         ...post,
+        link_url: normalizedLink,
         author: {
           name: currentProfile?.name || 'Você',
           avatar_url: currentProfile?.avatar_url || null,
@@ -312,6 +339,23 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
                   placeholder="Escreva uma legenda..."
                 />
               </div>
+
+              {isGestor && (
+                <div>
+                  <label className="text-xs text-text-muted flex items-center gap-1.5 mb-1">
+                    <LinkIcon className="w-3.5 h-3.5" /> Link redirecionável (opcional)
+                  </label>
+                  <input
+                    type="url"
+                    value={linkUrl}
+                    onChange={(e) => { setLinkUrl(e.target.value); setLinkError(null) }}
+                    className="w-full bg-bg-input border border-navy-700 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-red-veon"
+                    placeholder="https://exemplo.com"
+                  />
+                  {linkError && <p className="mt-1 text-xs text-red-veon">{linkError}</p>}
+                  <p className="mt-1 text-xs text-text-muted">Usuários que clicarem no post serão redirecionados para este endereço.</p>
+                </div>
+              )}
             </div>
           )}
         </div>
