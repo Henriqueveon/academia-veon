@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Bell, User, Heart, MessageCircle, UserPlus, Share2, FileText, BookOpen, Sparkles, Wallet, X, ShieldAlert } from 'lucide-react'
+import { Bell, User, Heart, MessageCircle, UserPlus, Share2, FileText, BookOpen, Sparkles, Wallet, X, ShieldAlert, Trash2 } from 'lucide-react'
 
 interface NotifConfig {
   icon: any
@@ -34,6 +34,11 @@ const NOTIF_LABELS: Record<string, NotifConfig> = {
     text: (_, reason) => reason
       ? `Seu post foi removido da nossa Comunidade. Motivo: ${reason}`
       : 'Seu post foi removido da nossa Comunidade',
+  },
+  post_deleted_by_user: {
+    icon: Trash2,
+    color: 'text-red-veon',
+    text: (a) => `${a} apagou o post na Comunidade`,
   },
 }
 
@@ -163,6 +168,8 @@ export function NotificationsBell() {
     } else if (n.post_id) {
       navigate(`/p/${n.post_id}`)
     } else if (n.type === 'new_follower' && n.actor_id) {
+      navigate(`/perfil/${n.actor_id}`)
+    } else if (n.type === 'post_deleted_by_user' && n.actor_id) {
       navigate(`/perfil/${n.actor_id}`)
     }
   }

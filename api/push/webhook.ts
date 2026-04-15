@@ -46,6 +46,12 @@ function buildNotificationText(notification: any, actorName: string, extra?: str
           : 'Seu post foi removido da nossa Comunidade',
         url: '/comunidade',
       }
+    case 'post_deleted_by_user':
+      return {
+        title: 'Academia Veon',
+        body: `${actorName} apagou o post na Comunidade`,
+        url: notification.actor_id ? `/perfil/${notification.actor_id}` : '/comunidade',
+      }
     default:
       return { title: 'Academia Veon', body: 'Você tem uma nova notificação', url: '/comunidade' }
   }
