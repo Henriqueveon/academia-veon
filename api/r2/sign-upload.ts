@@ -20,7 +20,7 @@ const s3 = new S3Client({
   responseChecksumValidation: 'WHEN_REQUIRED',
 })
 
-const ALLOWED_FOLDERS = ['posts', 'avatars', 'covers', 'treinamentos', 'modulos', 'aulas']
+const ALLOWED_FOLDERS = ['posts', 'avatars', 'covers', 'treinamentos', 'modulos', 'aulas', 'programas']
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
