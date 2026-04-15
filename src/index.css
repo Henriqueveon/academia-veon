@@ -52,3 +52,11 @@ body {
   color: var(--color-text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
+
+@keyframes marquee-x {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee-x {
+  animation: marquee-x 18s linear infinite;
+}

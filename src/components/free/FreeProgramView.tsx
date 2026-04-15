@@ -58,8 +58,29 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#050D20] via-[#0A1733] to-[#1E3A5F] text-white">
       {/* Topo / logo */}
-      <header className="w-full py-5 px-4 md:px-10 flex items-center justify-center md:justify-start border-b border-white/5">
-        <img src="/veon-logo.png" alt="Instituto Veon" className="h-[82px] md:h-[110px] object-contain" />
+      <header className="w-full py-5 px-4 md:px-10 border-b border-white/5">
+        {/* Desktop: logo à esquerda + "A Escola do Varejo" à direita */}
+        <div className="hidden md:flex items-center justify-between gap-6">
+          <img src="/veon-logo.png" alt="Instituto Veon" className="h-[110px] object-contain" />
+          <img src="/escola-do-varejo.png" alt="A Escola do Varejo" className="h-10 lg:h-12 object-contain opacity-90" />
+        </div>
+        {/* Mobile: logo centralizada + faixa em movimento abaixo */}
+        <div className="md:hidden flex flex-col items-center gap-3">
+          <img src="/veon-logo.png" alt="Instituto Veon" className="h-[82px] object-contain" />
+          <div className="w-full overflow-hidden">
+            <div className="flex w-max animate-marquee-x">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <img
+                  key={i}
+                  src="/escola-do-varejo.png"
+                  alt=""
+                  aria-hidden={i > 0}
+                  className="h-7 object-contain mx-8 opacity-80 shrink-0"
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </header>
 
       {/* Hero */}
