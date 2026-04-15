@@ -59,7 +59,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
     <div className="min-h-screen bg-gradient-to-br from-[#050D20] via-[#0A1733] to-[#1E3A5F] text-white">
       {/* Topo / logo */}
       <header className="w-full py-5 px-4 md:px-10 flex items-center justify-center md:justify-start border-b border-white/5">
-        <img src="/veon-logo.png" alt="Instituto Veon" className="h-40 md:h-48 object-contain" />
+        <img src="/veon-logo.png" alt="Instituto Veon" className="h-[120px] md:h-[144px] object-contain" />
       </header>
 
       {/* Hero */}
@@ -254,7 +254,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
       {/* Footer */}
       <footer className="border-t border-white/5 py-8 mt-6">
         <div className="flex flex-col items-center gap-3">
-          <img src="/veon-logo.png" alt="Instituto Veon" className="h-32 object-contain" />
+          <img src="/veon-logo.png" alt="Instituto Veon" className="h-24 object-contain" />
           <p className="text-xs text-[#B8C0D0]">© Instituto Veon</p>
         </div>
       </footer>
