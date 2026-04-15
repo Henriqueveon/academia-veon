@@ -27,7 +27,7 @@ const NOTIF_LABELS: Record<string, NotifConfig> = {
       ? `${a} tem interesse no curso "${course}"`
       : `${a} demonstrou interesse em um curso`,
   },
-  credit_received: { icon: Wallet, color: 'text-green-400', text: (_, amount) => `Você ganhou ${amount || '+R$ 2,00'}! Parabéns` },
+  credit_received: { icon: Wallet, color: 'text-green-400', text: (actor) => `Você ganhou +R$ 2,00! ${actor && actor !== 'Alguém' ? actor + ' se cadastrou pelo seu link' : 'Parabéns'}` },
   post_blocked: {
     icon: ShieldAlert,
     color: 'text-red-veon',

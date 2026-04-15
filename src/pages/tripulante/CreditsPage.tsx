@@ -38,18 +38,20 @@ export function CreditsPage() {
     enabled: !!user,
   })
 
-  // Quantos cadastros foram feitos pelo seu link
-  const { data: referralsCount = 0 } = useQuery({
+  // Lista de cadastros feitos pelo seu link
+  const { data: referrals = [] } = useQuery({
     queryKey: ['my-referrals', user?.id],
     queryFn: async () => {
-      const { count } = await supabase
+      const { data } = await supabase
         .from('profiles')
-        .select('*', { count: 'exact', head: true })
+        .select('id, name, avatar_url, created_at')
         .eq('referred_by', user!.id)
-      return count || 0
+        .order('created_at', { ascending: false })
+      return data || []
     },
     enabled: !!user,
   })
+  const referralsCount = referrals.length
 
   // Cursos disponíveis para resgate (com preço definido)
   const { data: redeemableCourses = [] } = useQuery({
@@ -165,6 +167,34 @@ export function CreditsPage() {
             <p className="text-xs text-text-muted">ganhos por indicação</p>
           </div>
         </div>
+
+        {referrals.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-navy-800">
+            <p className="text-xs text-text-muted mb-2">Alunos que você indicou</p>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {referrals.map((r: any) => (
+                <div key={r.id} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-navy-900 flex items-center justify-center flex-shrink-0">
+                    {r.avatar_url ? (
+                      <img src={r.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs text-text-muted font-semibold">
+                        {r.name?.trim().charAt(0).toUpperCase() || '?'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-text-primary truncate">{r.name}</p>
+                    <p className="text-xs text-text-muted">
+                      {new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold text-green-400 flex-shrink-0">+R$ 2,00</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Como funciona */}
