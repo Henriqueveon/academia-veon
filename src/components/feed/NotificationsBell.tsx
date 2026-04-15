@@ -27,7 +27,7 @@ const NOTIF_LABELS: Record<string, NotifConfig> = {
       ? `${a} tem interesse no curso "${course}"`
       : `${a} demonstrou interesse em um curso`,
   },
-  credit_received: { icon: Wallet, color: 'text-green-400', text: (_, amount) => `Você recebeu ${amount || 'créditos'}` },
+  credit_received: { icon: Wallet, color: 'text-green-400', text: (_, amount) => `Você ganhou ${amount || '+R$ 2,00'}! Parabéns` },
   post_blocked: {
     icon: ShieldAlert,
     color: 'text-red-veon',
@@ -229,6 +229,11 @@ export function NotificationsBell() {
                     // Sem foto do gestor — ícone neutro com escudo
                     <div className="w-10 h-10 rounded-full bg-red-veon/20 border border-red-veon/40 flex items-center justify-center">
                       <ShieldAlert className="w-5 h-5 text-red-veon" />
+                    </div>
+                  ) : n.type === 'credit_received' ? (
+                    // Sem foto — ícone de moeda/carteira em verde
+                    <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center">
+                      <Wallet className="w-5 h-5 text-green-400" />
                     </div>
                   ) : (
                     <>

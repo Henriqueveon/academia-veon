@@ -21,6 +21,15 @@ export function ViralSignupPage() {
   const [referralId, setReferralId] = useState<string | null>(null)
 
   useEffect(() => {
+    // Prioriza ?ref= da URL (link direto de indicação da CreditsPage);
+    // fallback para localStorage (setado por PublicPostPage quando aluno compartilha um post).
+    const params = new URLSearchParams(window.location.search)
+    const urlRef = params.get('ref')
+    if (urlRef) {
+      localStorage.setItem('referral_id', urlRef)
+      setReferralId(urlRef)
+      return
+    }
     const ref = localStorage.getItem('referral_id')
     setReferralId(ref)
   }, [])
