@@ -129,40 +129,46 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
             )}
           </div>
 
-          {/* Lista de aulas */}
-          <aside className="bg-[#0F1F42]/80 backdrop-blur-sm border border-[#E63946]/30 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm uppercase tracking-wider text-[#B8C0D0]">Aulas</span>
-              <span className="text-xs bg-[#E63946] text-white px-2 py-0.5 rounded-full font-semibold">
+          {/* Lista de aulas - estilo timeline */}
+          <aside>
+            <div className="flex items-center justify-end mb-3">
+              <span className="text-xs bg-[#E63946] text-white px-2.5 py-1 rounded-full font-semibold">
                 {program.episodes_badge || `${total} episódios`}
               </span>
             </div>
-            <ul className="space-y-2">
+            <ul className="relative">
               {lessons.map((l, idx) => {
                 const isActive = idx === activeIdx && unlocked
+                const isLast = idx === lessons.length - 1
                 return (
-                  <li key={l.id}>
+                  <li key={l.id} className="relative pb-4 last:pb-0">
+                    {!isLast && (
+                      <span
+                        aria-hidden
+                        className="absolute left-[22px] top-[52px] bottom-0 w-px bg-[#E63946]"
+                      />
+                    )}
                     <button
                       onClick={() => handleSelect(idx)}
-                      className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors flex items-start gap-3 ${
+                      className={`relative w-full text-left px-4 py-4 rounded-xl border-[1.5px] transition-colors flex items-start gap-3 ${
                         isActive
-                          ? 'bg-[#E63946]/10 border-[#E63946]'
-                          : 'border-white/10 hover:border-[#E63946]/50 hover:bg-[#E63946]/5'
+                          ? 'bg-[#0F1F42]/80 border-[#E63946]'
+                          : 'bg-[#0F1F42]/60 border-white/10 hover:border-[#E63946]/60'
                       }`}
                     >
-                      <div className="mt-0.5">
+                      <div className="flex-shrink-0 w-11 h-11 rounded-lg bg-[#0A1733] border border-white/10 flex items-center justify-center">
                         {unlocked ? (
-                          <Unlock className="w-4 h-4 text-[#E63946]" />
+                          <Unlock className="w-5 h-5 text-[#E63946]" />
                         ) : (
-                          <Lock className="w-4 h-4 text-[#B8C0D0]" />
+                          <Lock className="w-5 h-5 text-[#E63946]" />
                         )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-white truncate">
-                          {idx + 1}. {l.title}
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="text-sm md:text-base font-semibold text-white leading-snug">
+                          Aula {String(idx + 1).padStart(2, '0')}: {l.title}
                         </p>
                         {l.subtitle && (
-                          <p className="text-xs text-[#B8C0D0] truncate">{l.subtitle}</p>
+                          <p className="text-xs text-[#B8C0D0] mt-1 leading-snug">{l.subtitle}</p>
                         )}
                       </div>
                     </button>
