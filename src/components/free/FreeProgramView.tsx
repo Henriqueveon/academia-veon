@@ -59,7 +59,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
     <div className="min-h-screen bg-gradient-to-br from-[#050D20] via-[#0A1733] to-[#1E3A5F] text-white">
       {/* Topo / logo */}
       <header className="w-full py-5 px-4 md:px-10 flex items-center justify-center md:justify-start border-b border-white/5">
-        <img src="/veon-logo.png" alt="Instituto Veon" className="h-[102px] md:h-[122px] object-contain" />
+        <img src="/veon-logo.png" alt="Instituto Veon" className="h-[82px] md:h-[110px] object-contain" />
       </header>
 
       {/* Hero */}
