@@ -36,6 +36,38 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
   const isOwn = post.user_id === user?.id
   const isGestor = profile?.role === 'gestor'
   const isBlocked = !!post.blocked_at
+  const canSeeViews = isOwn || isGestor
+
+  // Registra view quando o post fica visível no viewport por >=1s (só 1x por sessão).
+  const rootRef = useRef<HTMLDivElement>(null)
+  const viewRegisteredRef = useRef(false)
+  useEffect(() => {
+    if (!user || isOwn || viewRegisteredRef.current || !rootRef.current) return
+    if (post.status && post.status !== 'ready') return
+    let timer: number | null = null
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          if (timer === null) {
+            timer = window.setTimeout(() => {
+              if (viewRegisteredRef.current) return
+              viewRegisteredRef.current = true
+              supabase.rpc('register_post_view', { p_post_id: post.id })
+            }, 1000)
+          }
+        } else if (timer !== null) {
+          window.clearTimeout(timer)
+          timer = null
+        }
+      },
+      { threshold: 0.5 },
+    )
+    observer.observe(rootRef.current)
+    return () => {
+      observer.disconnect()
+      if (timer !== null) window.clearTimeout(timer)
+    }
+  }, [user, isOwn, post.id, post.status])
 
   // Gating: skeleton until first media loads (or 4s failsafe).
   // Audio/in-flight uploading posts skip the gate (audio is metadata-only,
@@ -354,7 +386,7 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
   const isAudioOnly = post.pages.length > 0 && post.pages.every((p: any) => p.type === 'audio')
 
   return (
-    <div className="bg-bg-card border border-navy-800 rounded-2xl overflow-hidden">
+    <div ref={rootRef} className="bg-bg-card border border-navy-800 rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <button
@@ -605,6 +637,15 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
             <Send className="w-[22px] h-[22px] -translate-y-px" strokeWidth={2} />
             <span className="text-sm font-semibold text-text-primary">{post.sharesCount || 0}</span>
           </button>
+          {canSeeViews && (
+            <div
+              className="flex items-center gap-1.5 text-text-secondary ml-auto"
+              title="Visualizações (visível apenas para o dono do post e gestores)"
+            >
+              <Eye className="w-[22px] h-[22px]" strokeWidth={2} />
+              <span className="text-sm font-semibold text-text-primary">{post.viewsCount || 0}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -753,6 +794,7 @@ export const PostCard = memo(PostCardImpl, (prev, next) => {
     prev.post.likesCount === next.post.likesCount &&
     prev.post.commentsCount === next.post.commentsCount &&
     prev.post.sharesCount === next.post.sharesCount &&
+    prev.post.viewsCount === next.post.viewsCount &&
     prev.post.likedByMe === next.post.likedByMe &&
     prev.post.caption === next.post.caption &&
     prev.post.link_url === next.post.link_url &&

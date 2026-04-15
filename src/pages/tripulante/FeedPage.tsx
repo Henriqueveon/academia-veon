@@ -49,11 +49,12 @@ async function fetchFeedPage(cursor: string | null, userId: string | null, fetch
   const postIds = posts.map((p: any) => p.id)
   const userIds = [...new Set(posts.map((p: any) => p.user_id))]
 
-  const [pages, likes, comments, shares, profiles] = await Promise.all([
+  const [pages, likes, comments, shares, views, profiles] = await Promise.all([
     supabase.from('post_pages').select('*').in('post_id', postIds).order('sort_order'),
     supabase.from('post_likes').select('*').in('post_id', postIds),
     supabase.from('post_comments').select('*').in('post_id', postIds).order('created_at'),
     supabase.from('post_shares').select('post_id').in('post_id', postIds),
+    supabase.from('post_views').select('post_id').in('post_id', postIds),
     supabase.from('profiles').select('id, name, avatar_url, profession').in('id', userIds),
   ])
 
@@ -89,6 +90,7 @@ async function fetchFeedPage(cursor: string | null, userId: string | null, fetch
     likesCount: (likes.data || []).filter((l: any) => l.post_id === post.id).length,
     commentsCount: (comments.data || []).filter((c: any) => c.post_id === post.id).length,
     sharesCount: (shares.data || []).filter((s: any) => s.post_id === post.id).length,
+    viewsCount: (views.data || []).filter((v: any) => v.post_id === post.id).length,
   }))
 
   return {
