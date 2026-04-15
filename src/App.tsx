@@ -18,6 +18,7 @@ import { AccessPage } from './pages/gestor/AccessPage'
 import { EngagementPage } from './pages/gestor/EngagementPage'
 import { RegistrationLinksPage } from './pages/gestor/RegistrationLinksPage'
 import { DashboardPage } from './pages/gestor/DashboardPage'
+import { CreditSettingsPage } from './pages/gestor/CreditSettingsPage'
 import { ProfilePage } from './pages/tripulante/ProfilePage'
 import { FeedPage } from './pages/tripulante/FeedPage'
 
@@ -58,6 +59,7 @@ function App() {
                 <Route path="/gestor/engajamento" element={<EngagementPage />} />
                 <Route path="/gestor/liberacoes" element={<AccessPage />} />
                 <Route path="/gestor/links-cadastro" element={<RegistrationLinksPage />} />
+                <Route path="/gestor/creditos" element={<CreditSettingsPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/comunidade" replace />} />

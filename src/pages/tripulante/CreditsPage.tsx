@@ -13,6 +13,17 @@ export function CreditsPage() {
 
   const referralLink = user ? `${window.location.origin}/cadastro?ref=${user.id}` : ''
 
+  // Valor do bônus por indicação (configurado pelo gestor)
+  const { data: creditSettings } = useQuery({
+    queryKey: ['credit-settings'],
+    queryFn: async () => {
+      const { data } = await supabase.from('credit_settings').select('referral_amount').eq('id', 1).maybeSingle()
+      return data
+    },
+  })
+  const referralBonus = Number(creditSettings?.referral_amount ?? 2)
+  const formatBRL = (n: number) => `R$ ${n.toFixed(2).replace('.', ',')}`
+
   // Saldo
   const { data: credit } = useQuery({
     queryKey: ['credit', user?.id],
@@ -133,7 +144,7 @@ export function CreditsPage() {
           </div>
           <div>
             <h2 className="font-semibold text-text-primary">Indique amigos e ganhe</h2>
-            <p className="text-xs text-text-muted">R$ 2,00 por cada cadastro novo</p>
+            <p className="text-xs text-text-muted">{formatBRL(referralBonus)} por cada cadastro novo</p>
           </div>
         </div>
 
@@ -162,7 +173,7 @@ export function CreditsPage() {
           </div>
           <div className="text-center">
             <p className="text-2xl font-bold text-green-400">
-              R$ {(referralsCount * 2).toFixed(2).replace('.', ',')}
+              {formatBRL(referralsCount * referralBonus)}
             </p>
             <p className="text-xs text-text-muted">ganhos por indicação</p>
           </div>
@@ -189,7 +200,7 @@ export function CreditsPage() {
                       {new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
-                  <span className="text-xs font-semibold text-green-400 flex-shrink-0">+R$ 2,00</span>
+                  <span className="text-xs font-semibold text-green-400 flex-shrink-0">+{formatBRL(referralBonus)}</span>
                 </div>
               ))}
             </div>
@@ -207,7 +218,7 @@ export function CreditsPage() {
           </div>
           <div className="flex gap-3">
             <div className="w-7 h-7 rounded-full bg-red-veon/20 text-red-veon font-bold flex items-center justify-center flex-shrink-0">2</div>
-            <p>Quando alguém se cadastrar pelo seu link, você ganha <strong className="text-text-primary">R$ 2,00</strong> automático</p>
+            <p>Quando alguém se cadastrar pelo seu link, você ganha <strong className="text-text-primary">créditos</strong> automáticos</p>
           </div>
           <div className="flex gap-3">
             <div className="w-7 h-7 rounded-full bg-red-veon/20 text-red-veon font-bold flex items-center justify-center flex-shrink-0">3</div>

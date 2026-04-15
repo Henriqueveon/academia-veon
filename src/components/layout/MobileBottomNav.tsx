@@ -34,6 +34,7 @@ export function MobileBottomNav() {
     { path: '/gestor/engajamento', label: 'Engajamento', icon: BarChart3 },
     { path: '/gestor/liberacoes', label: 'Liberações', icon: Settings },
     { path: '/gestor/links-cadastro', label: 'Links de Cadastro', icon: Link2 },
+    { path: '/gestor/creditos', label: 'Créditos', icon: Wallet },
     { path: '/treinamentos', label: 'Ver como aluno', icon: BookOpen },
   ]
 
