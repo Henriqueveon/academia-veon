@@ -95,6 +95,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
       normalizedLink = normalizeLink(linkUrl)
       if (!normalizedLink) {
         setLinkError('Link inválido. Use um endereço como https://exemplo.com')
+        setIsSubmitting(false)
         return
       }
     }
