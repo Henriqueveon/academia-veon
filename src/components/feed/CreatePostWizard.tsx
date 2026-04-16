@@ -7,8 +7,8 @@ import { compressImage } from '../../lib/imageCompression'
 import { useQueryClient } from '@tanstack/react-query'
 import { startPostUpload, type UploadTarget, CHUNK_THRESHOLD } from '../../lib/postUploadManager'
 import { useUploadStore } from '../../stores/uploadStore'
-import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause, Link as LinkIcon, Loader2 } from 'lucide-react'
-import { transcodeWebmToMp4 } from '../../lib/videoTranscode'
+import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause, Link as LinkIcon } from 'lucide-react'
+import fixWebmDuration from 'fix-webm-duration'
 
 const BUNNY_CDN_HOSTNAME = import.meta.env.VITE_BUNNY_CDN_HOSTNAME || 'vz-6d04ab5b-6ae.b-cdn.net'
 
@@ -608,8 +608,6 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
   const [cameraOn, setCameraOn] = useState(false)
   const [recording, setRecording] = useState(false)
   const [recordTime, setRecordTime] = useState(0)
-  const [converting, setConverting] = useState(false)
-  const [convertProgress, setConvertProgress] = useState(0)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -664,14 +662,10 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
 
       let finalBlob = rawBlob
       if (rawBlob.type.includes('webm')) {
-        setConverting(true)
-        setConvertProgress(0)
         try {
-          finalBlob = await transcodeWebmToMp4(rawBlob, setConvertProgress)
+          finalBlob = await fixWebmDuration(rawBlob, duration * 1000)
         } catch (err) {
-          console.error('Transcoding failed, uploading original:', err)
-        } finally {
-          setConverting(false)
+          console.error('fix-webm-duration failed:', err)
         }
       }
 
@@ -745,22 +739,6 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
             <Video className="w-12 h-12 mx-auto mb-2" />
             <p className="text-sm">Grave ou envie um vídeo</p>
             <p className="text-xs">Máx. 2min30</p>
-          </div>
-        )}
-
-        {/* Converting overlay */}
-        {converting && (
-          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
-            <Loader2 className="w-8 h-8 text-white animate-spin mb-3" />
-            <p className="text-white text-sm font-medium">Convertendo vídeo...</p>
-            {convertProgress > 0 && (
-              <div className="mt-3 w-32">
-                <div className="w-full bg-white/20 rounded-full h-1.5">
-                  <div className="bg-white h-1.5 rounded-full transition-all" style={{ width: `${convertProgress}%` }} />
-                </div>
-                <p className="text-white/60 text-xs mt-1 text-center">{convertProgress}%</p>
-              </div>
-            )}
           </div>
         )}
 
