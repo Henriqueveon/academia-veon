@@ -50,6 +50,7 @@ export interface FreeLesson {
   subtitle?: string | null
   bunny_video_id?: string | null
   bunny_library_id?: string | null
+  thumbnail_url?: string | null
   sort_order: number
 }
 
@@ -203,8 +204,10 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock, o
                           : 'bg-[#0F1F42]/60 border-white/10 hover:border-[#E63946]/60'
                       }`}
                     >
-                      <div className="flex-shrink-0 w-11 h-11 rounded-lg bg-[#0A1733] border border-white/10 flex items-center justify-center">
-                        {unlocked ? (
+                      <div className="flex-shrink-0 w-16 h-11 rounded-lg bg-[#0A1733] border border-white/10 flex items-center justify-center overflow-hidden">
+                        {l.thumbnail_url ? (
+                          <img src={l.thumbnail_url} alt={l.title} className="w-full h-full object-cover" />
+                        ) : unlocked ? (
                           <Unlock className="w-5 h-5 text-[#E63946]" />
                         ) : (
                           <Lock className="w-5 h-5 text-[#E63946]" />

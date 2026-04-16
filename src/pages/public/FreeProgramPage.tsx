@@ -102,6 +102,7 @@ export function FreeProgramPage() {
         webhookUrl={program.webhook_url}
         programSlug={program.slug}
         programTitle={program.title}
+        buttonText={(program as any).form_button_text}
       />
       <LeadFormModal
         open={ctaModalOpen}
@@ -110,6 +111,7 @@ export function FreeProgramPage() {
         webhookUrl={program.webhook_url}
         programSlug={program.slug}
         programTitle={program.title}
+        buttonText={(program as any).form_button_text}
       />
     </>
   )

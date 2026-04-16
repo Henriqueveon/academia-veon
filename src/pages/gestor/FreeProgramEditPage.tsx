@@ -17,6 +17,7 @@ interface FormState {
   cta_button_text: string
   cta_button_url: string
   cta_requires_form: boolean
+  form_button_text: string
   webhook_url: string
   meta_pixel_id: string
   objective_title: string
@@ -36,7 +37,7 @@ interface FormState {
 
 const EMPTY: FormState = {
   slug: '', title: '', subtitle: '', episodes_badge: '3 episódios', thumbnail_url: '', published: false, visible_to_students: true,
-  cta_button_text: 'Quero saber mais', cta_button_url: '', cta_requires_form: false, webhook_url: '', meta_pixel_id: '',
+  cta_button_text: 'Quero saber mais', cta_button_url: '', cta_requires_form: false, form_button_text: '', webhook_url: '', meta_pixel_id: '',
   objective_title: '', objective_card1_text: '', objective_card2_text: '', objective_card3_text: '',
   partners_section_title: '',
   partner1_name: '', partner1_role: '', partner1_bio: '', partner1_photo_url: '',
@@ -89,6 +90,7 @@ export function FreeProgramEditPage() {
         cta_button_text: program.cta_button_text || '',
         cta_button_url: program.cta_button_url || '',
         cta_requires_form: !!program.cta_requires_form,
+        form_button_text: program.form_button_text || '',
         webhook_url: program.webhook_url || '',
         meta_pixel_id: program.meta_pixel_id || '',
         objective_title: program.objective_title || '',
@@ -271,6 +273,14 @@ export function FreeProgramEditPage() {
                   : 'Não — redireciona direto para o link'}
               </span>
             </label>
+          </Field>
+          <Field label="Texto do botão do formulário" hint='Deixe vazio para usar o padrão "Desbloquear aulas"'>
+            <input
+              className={inputCls}
+              value={form.form_button_text}
+              onChange={e => upd('form_button_text')(e.target.value)}
+              placeholder="Desbloquear aulas"
+            />
           </Field>
           <Field label="Webhook URL do seu CRM para este programa" full>
             <input className={inputCls} value={form.webhook_url} onChange={e => upd('webhook_url')(e.target.value)} placeholder="https://seu-crm.com/webhook/..." />
@@ -455,6 +465,14 @@ function LessonRow({
           onBlur={() => { if (subtitle !== lesson.subtitle) onChange({ subtitle }) }}
         />
       </Field>
+
+      <ImageUpload
+        folder="aulas"
+        label="Capa da aula"
+        hint="Imagem exibida na lista de aulas (16:9 recomendado)"
+        value={lesson.thumbnail_url || ''}
+        onChange={(url) => onChange({ thumbnail_url: url })}
+      />
 
       <div>
         <label className="block text-sm text-text-secondary mb-1">Vídeo (Bunny)</label>

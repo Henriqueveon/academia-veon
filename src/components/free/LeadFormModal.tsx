@@ -15,9 +15,10 @@ interface LeadFormModalProps {
   webhookUrl?: string | null
   programSlug: string
   programTitle?: string
+  buttonText?: string | null
 }
 
-export function LeadFormModal({ open, onClose, onSubmit, webhookUrl, programSlug, programTitle }: LeadFormModalProps) {
+export function LeadFormModal({ open, onClose, onSubmit, webhookUrl, programSlug, programTitle, buttonText }: LeadFormModalProps) {
   const [data, setData] = useState<LeadData>({ nome: '', whatsapp: '', email: '', instagram: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -71,7 +72,13 @@ export function LeadFormModal({ open, onClose, onSubmit, webhookUrl, programSlug
           Preencha para desbloquear suas aulas
         </h2>
         {programTitle && (
-          <p className="text-sm text-[#B8C0D0] mb-5">{programTitle}</p>
+          <p className="text-sm text-[#B8C0D0] mb-5">
+            {programTitle.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+              part.startsWith('**') && part.endsWith('**')
+                ? <span key={i} className="text-[#E63946] font-bold">{part.slice(2, -2)}</span>
+                : <span key={i}>{part}</span>
+            )}
+          </p>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -122,7 +129,7 @@ export function LeadFormModal({ open, onClose, onSubmit, webhookUrl, programSlug
             className="w-full bg-[#E63946] hover:bg-[#c62f3b] text-white font-semibold px-5 py-3 rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            Desbloquear aulas
+            {buttonText?.trim() || 'Desbloquear aulas'}
           </button>
         </form>
       </div>

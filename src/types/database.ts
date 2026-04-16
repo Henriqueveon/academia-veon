@@ -144,6 +144,7 @@ export interface Database {
           cta_button_text: string | null
           cta_button_url: string | null
           cta_requires_form: boolean
+          form_button_text: string | null
           webhook_url: string | null
           published: boolean
           created_at: string
@@ -171,6 +172,7 @@ export interface Database {
           cta_button_text?: string | null
           cta_button_url?: string | null
           cta_requires_form?: boolean
+          form_button_text?: string | null
           webhook_url?: string | null
           published?: boolean
           created_at?: string
@@ -186,6 +188,7 @@ export interface Database {
           subtitle: string | null
           bunny_video_id: string | null
           bunny_library_id: string | null
+          thumbnail_url: string | null
           sort_order: number
           created_at: string
         }
@@ -196,6 +199,7 @@ export interface Database {
           subtitle?: string | null
           bunny_video_id?: string | null
           bunny_library_id?: string | null
+          thumbnail_url?: string | null
           sort_order?: number
           created_at?: string
         }
