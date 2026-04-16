@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { FreeProgramView, type FreeProgram, type FreeLesson } from '../../components/free/FreeProgramView'
 import { LeadFormModal } from '../../components/free/LeadFormModal'
+import { useMetaPixel, trackPixelEvent } from '../../hooks/useMetaPixel'
 
 export function FreeProgramPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -63,8 +64,13 @@ export function FreeProgramPage() {
     )
   }
 
+  // Inicializa Meta Pixel específico deste programa (PageView automático)
+  useMetaPixel(program?.meta_pixel_id)
+
   const handleUnlock = () => {
     if (!slug) return
+    // Dispara evento Lead no Meta Pixel com o slug para identificar qual LP converteu
+    trackPixelEvent('Lead', { content_name: slug, content_category: 'free_program' })
     localStorage.setItem('unlocked_' + slug, 'true')
     setUnlocked(true)
     setModalOpen(false)

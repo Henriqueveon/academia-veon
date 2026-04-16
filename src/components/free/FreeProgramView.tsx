@@ -38,6 +38,7 @@ export interface FreeProgram {
   cta_button_text?: string | null
   cta_button_url?: string | null
   webhook_url?: string | null
+  meta_pixel_id?: string | null
   published?: boolean
 }
 

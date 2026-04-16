@@ -15,6 +15,7 @@ interface FormState {
   cta_button_text: string
   cta_button_url: string
   webhook_url: string
+  meta_pixel_id: string
   objective_title: string
   objective_card1_text: string
   objective_card2_text: string
@@ -31,7 +32,7 @@ interface FormState {
 
 const EMPTY: FormState = {
   slug: '', title: '', subtitle: '', episodes_badge: '3 episódios', published: false,
-  cta_button_text: 'Quero saber mais', cta_button_url: '', webhook_url: '',
+  cta_button_text: 'Quero saber mais', cta_button_url: '', webhook_url: '', meta_pixel_id: '',
   objective_title: '', objective_card1_text: '', objective_card2_text: '', objective_card3_text: '',
   partner1_name: '', partner1_role: '', partner1_bio: '', partner1_photo_url: '',
   partner2_name: '', partner2_role: '', partner2_bio: '', partner2_photo_url: '',
@@ -81,6 +82,7 @@ export function FreeProgramEditPage() {
         cta_button_text: program.cta_button_text || '',
         cta_button_url: program.cta_button_url || '',
         webhook_url: program.webhook_url || '',
+        meta_pixel_id: program.meta_pixel_id || '',
         objective_title: program.objective_title || '',
         objective_card1_text: program.objective_card1_text || '',
         objective_card2_text: program.objective_card2_text || '',
@@ -229,6 +231,18 @@ export function FreeProgramEditPage() {
           <Field label="Webhook URL do seu CRM para este programa" full>
             <input className={inputCls} value={form.webhook_url} onChange={e => upd('webhook_url')(e.target.value)} placeholder="https://seu-crm.com/webhook/..." />
             <p className="text-xs text-text-muted mt-1">Os leads capturados serão enviados via POST para esta URL.</p>
+          </Field>
+          <Field label="Meta Pixel ID (Facebook/Instagram Ads)" full>
+            <input
+              className={inputCls}
+              value={form.meta_pixel_id}
+              onChange={e => upd('meta_pixel_id')(e.target.value.replace(/\D/g, ''))}
+              placeholder="Ex: 1234567890123456"
+              inputMode="numeric"
+            />
+            <p className="text-xs text-text-muted mt-1">
+              Cole apenas o ID numérico do pixel. Eventos rastreados: <b>PageView</b> (ao abrir a LP) e <b>Lead</b> (ao preencher o formulário, com o slug do programa como content_name).
+            </p>
           </Field>
         </div>
       </Section>
