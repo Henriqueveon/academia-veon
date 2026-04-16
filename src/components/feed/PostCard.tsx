@@ -825,6 +825,7 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; o
   const [progress, setProgress] = useState(0)
   const [holding, setHolding] = useState(false)
   const holdTimerRef = useRef<number | null>(null)
+  const [videoReady, setVideoReady] = useState(false)
 
   // Eagerly buffer when card enters viewport (with preload="metadata", bytes are skipped on load).
   useEffect(() => {
@@ -832,7 +833,7 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; o
     const v = localRef.current
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio > 0.3) v.load()
+        if (entry.isIntersecting && entry.intersectionRatio > 0.3 && v.readyState < 2) v.load()
       },
       { threshold: [0, 0.3] },
     )
@@ -885,21 +886,27 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; o
       <video
         ref={localRef}
         src={src}
-        poster={poster}
         className="w-full h-full object-cover bg-navy-900"
         playsInline
         muted={muted}
         loop
         preload="metadata"
         onClick={handleVideoClick}
-        onCanPlay={onCanPlay}
-        onLoadedMetadata={onCanPlay}
+        onCanPlay={() => { setVideoReady(true); onCanPlay?.() }}
+        onLoadedMetadata={() => { onCanPlay?.() }}
         onError={onError}
         onTimeUpdate={(e) => {
           const v = e.currentTarget
           if (v.duration > 0) setProgress((v.currentTime / v.duration) * 100)
         }}
       />
+      {poster && !videoReady && (
+        <img
+          src={poster}
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          aria-hidden
+        />
+      )}
 
       {/* Mute toggle (Instagram style: bottom-right) */}
       <button
