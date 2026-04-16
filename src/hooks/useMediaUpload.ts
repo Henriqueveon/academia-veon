@@ -190,7 +190,9 @@ export function useMediaUpload() {
 
       let publicUrl: string
       if (file.size > CHUNK_SIZE) {
-        publicUrl = await uploadBlobInChunks(file, folder, contentType, finalExt, onProgress)
+        const init = await initMultipart(folder, contentType, finalExt)
+        await uploadBlobInChunks(file, init, onProgress)
+        publicUrl = init.publicUrl
       } else {
         const { uploadUrl, publicUrl: signed } = await signR2Upload(folder, contentType, finalExt)
         await uploadBlobToR2(uploadUrl, file, contentType, onProgress)
