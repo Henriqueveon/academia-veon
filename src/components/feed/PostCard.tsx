@@ -1081,18 +1081,27 @@ function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
 }
 
 function CommentItem({ comment, isOwn, onLike, onReply, onDelete, formatDate }: any) {
+  const navigate = useNavigate()
+  const profilePath = isOwn ? '/perfil' : `/perfil/${comment.author.id}`
+
   return (
     <div className="flex items-start gap-2">
-      <div className="w-7 h-7 rounded-full overflow-hidden bg-navy-900 flex items-center justify-center flex-shrink-0">
+      <button
+        onClick={() => navigate(profilePath)}
+        className="w-7 h-7 rounded-full overflow-hidden bg-navy-900 flex items-center justify-center shrink-0 cursor-pointer focus:outline-none"
+      >
         {comment.author.avatar_url ? (
           <img src={comment.author.avatar_url} alt="" className="w-full h-full object-cover" />
         ) : (
           <User className="w-3.5 h-3.5 text-text-muted" />
         )}
-      </div>
+      </button>
       <div className="flex-1 min-w-0">
         <p className="text-sm">
-          <span className="font-semibold text-text-primary">{comment.author.name}</span>{' '}
+          <button
+            onClick={() => navigate(profilePath)}
+            className="font-semibold text-text-primary hover:underline cursor-pointer focus:outline-none"
+          >{comment.author.name}</button>{' '}
           <span className="text-text-secondary">{comment.text}</span>
         </p>
         <div className="flex items-center gap-3 mt-0.5 text-xs text-text-muted">
