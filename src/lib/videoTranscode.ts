@@ -44,10 +44,10 @@ export async function transcodeWebmToMp4(
       '-movflags', '+faststart',
       'output.mp4',
     ])
-    const data = await ff.readFile('output.mp4') as Uint8Array
+    const data = await ff.readFile('output.mp4')
     await ff.deleteFile('input.webm')
     await ff.deleteFile('output.mp4')
-    return new Blob([data], { type: 'video/mp4' })
+    return new Blob([new Uint8Array(data as Uint8Array)], { type: 'video/mp4' })
   } finally {
     if (handler) ff.off('progress', handler)
   }
