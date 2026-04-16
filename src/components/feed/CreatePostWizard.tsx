@@ -436,7 +436,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
                 </div>
                 <div className="text-left">
                   <p className="font-medium text-text-primary">Vídeo</p>
-                  <p className="text-xs text-text-muted">Até 2min30 (gravar ou enviar)</p>
+                  <p className="text-xs text-text-muted">Até 2min30 (da galeria)</p>
                 </div>
               </button>
               <button onClick={() => selectType('audio')} className="w-full flex items-center gap-4 p-5 bg-bg-input border border-navy-700 rounded-xl hover:border-red-veon transition-colors">
@@ -601,12 +601,8 @@ function ImageInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
 }
 
 // ============ VIDEO INPUT ============
-const isMobileDevice = typeof window !== 'undefined'
-  && window.matchMedia('(hover: none) and (pointer: coarse)').matches
-
 function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<PageData>) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
-  const cameraRef = useRef<HTMLInputElement>(null)
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -648,7 +644,7 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
         ) : (
           <div className="text-text-muted text-center">
             <Video className="w-12 h-12 mx-auto mb-2" />
-            <p className="text-sm">Grave ou envie um vídeo</p>
+            <p className="text-sm">Escolha um vídeo da galeria</p>
             <p className="text-xs">Máx. 2min30</p>
           </div>
         )}
@@ -656,23 +652,15 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
 
       <div className="flex gap-2">
         {!page.previewUrl && (
-          <>
-            {isMobileDevice && (
-              <button onClick={() => cameraRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 bg-red-veon hover:bg-red-veon-dark text-white text-sm py-2.5 rounded-lg">
-                <Video className="w-4 h-4" /> Gravar
-              </button>
-            )}
-            <button onClick={() => fileRef.current?.click()} className={`${isMobileDevice ? 'flex-1' : 'w-full'} flex items-center justify-center gap-2 bg-navy-800 hover:bg-navy-700 text-text-secondary hover:text-text-primary text-sm py-2.5 rounded-lg`}>
-              Enviar vídeo
-            </button>
-          </>
+          <button onClick={() => fileRef.current?.click()} className="w-full flex items-center justify-center gap-2 bg-red-veon hover:bg-red-veon-dark text-white text-sm py-2.5 rounded-lg">
+            <Video className="w-4 h-4" /> Escolher da galeria
+          </button>
         )}
         {page.previewUrl && (
-          <button onClick={reset} className="text-xs text-red-veon hover:text-red-veon-dark">Refazer</button>
+          <button onClick={reset} className="text-xs text-red-veon hover:text-red-veon-dark">Trocar vídeo</button>
         )}
       </div>
       <input ref={fileRef} type="file" accept="video/mp4,video/quicktime,video/x-m4v" onChange={handleFile} className="hidden" />
-      <input ref={cameraRef} type="file" accept="video/mp4,video/quicktime" capture="user" onChange={handleFile} className="hidden" />
     </div>
   )
 }
