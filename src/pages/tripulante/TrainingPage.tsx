@@ -153,9 +153,15 @@ export function TrainingPage() {
 
   return (
     <div>
+      {/* Header: logo + slogan */}
+      <div className="flex items-center justify-between py-4 mb-6 border-b border-white/10">
+        <img src="/veon-logo.png" alt="Instituto Veon" className="h-[46px] md:h-[55px] object-contain" />
+        <span className="text-base md:text-lg font-bold italic text-white/90 tracking-wide">A Escola do Varejo</span>
+      </div>
+
       <button
         onClick={() => navigate('/treinamentos')}
-        className="flex items-center gap-2 text-text-muted hover:text-text-primary mb-6 transition-colors"
+        className="flex items-center gap-2 text-text-muted hover:text-text-primary mb-4 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Voltar aos treinamentos
       </button>
