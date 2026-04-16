@@ -47,6 +47,10 @@ export function FreeProgramPage() {
     enabled: !!program?.id,
   })
 
+  // Inicializa Meta Pixel específico deste programa (PageView automático).
+  // IMPORTANTE: tem que ficar antes dos returns condicionais para não quebrar ordem dos hooks.
+  useMetaPixel(program?.meta_pixel_id)
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0A1733] flex items-center justify-center">
@@ -63,9 +67,6 @@ export function FreeProgramPage() {
       </div>
     )
   }
-
-  // Inicializa Meta Pixel específico deste programa (PageView automático)
-  useMetaPixel(program?.meta_pixel_id)
 
   const handleUnlock = () => {
     if (!slug) return
