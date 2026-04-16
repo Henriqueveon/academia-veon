@@ -4,9 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useImageUpload } from '../../hooks/useImageUpload'
-import { Camera, Check, User, Pencil, X, Image as ImageIcon, Video, Mic, Grid3x3, ArrowLeft, ImagePlus, Move, UserPlus, UserCheck, AlertCircle } from 'lucide-react'
+import { Camera, Check, User, Pencil, X, Image as ImageIcon, Video, Mic, Grid3x3, ArrowLeft, ImagePlus, Move, UserPlus, UserCheck, AlertCircle, Eye } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { PostCard } from '../../components/feed/PostCard'
 import { MediaWithSpinner } from '../../components/ui/MediaWithSpinner'
 import { Spinner } from '../../components/ui/Spinner'
 
@@ -53,7 +52,6 @@ export function ProfilePage() {
   const [form, setForm] = useState({ name: '', avatar_url: '', cover_url: '', cover_position: 50, profession: '', bio: '' })
   const [editing, setEditing] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [selectedPost, setSelectedPost] = useState<any>(null)
   const coverFileRef = useRef<HTMLInputElement>(null)
   const [repositioning, setRepositioning] = useState(false)
   const dragStartRef = useRef<{ y: number; startPos: number } | null>(null)
@@ -129,9 +127,19 @@ export function ProfilePage() {
         .in('post_id', postIds)
         .order('sort_order')
 
+      let viewsData: any[] = []
+      if (isOwn) {
+        const { data: views } = await supabase
+          .from('post_views')
+          .select('post_id')
+          .in('post_id', postIds)
+        viewsData = views || []
+      }
+
       return posts.map((p: any) => ({
         ...p,
         pages: (pages || []).filter((pg: any) => pg.post_id === p.id),
+        viewsCount: viewsData.filter((v: any) => v.post_id === p.id).length,
       }))
     },
     enabled: !!profileUserId,
@@ -295,36 +303,6 @@ export function ProfilePage() {
   }
 
   // Load full post data when clicking a thumbnail (for display in modal)
-  async function openPost(post: any) {
-    // Reuse data already loaded; fetch likes/comments fresh
-    const [likes, comments, commentLikes] = await Promise.all([
-      supabase.from('post_likes').select('*').eq('post_id', post.id),
-      supabase.from('post_comments').select('*').eq('post_id', post.id).order('created_at'),
-      supabase.from('comment_likes').select('*'),
-    ])
-    const commentUserIds = [...new Set((comments.data || []).map((c: any) => c.user_id))]
-    const { data: commentProfiles } = await supabase
-      .from('profiles')
-      .select('id, name, avatar_url')
-      .in('id', commentUserIds.length > 0 ? commentUserIds : ['none'])
-    const profileMap = new Map((commentProfiles || []).map((p: any) => [p.id, p]))
-
-    setSelectedPost({
-      ...post,
-      author: { name: form.name, avatar_url: form.avatar_url, profession: form.profession },
-      likes: likes.data || [],
-      likedByMe: (likes.data || []).some((l: any) => l.user_id === user?.id),
-      likesCount: (likes.data || []).length,
-      comments: (comments.data || []).map((c: any) => ({
-        ...c,
-        author: profileMap.get(c.user_id) || { name: '—', avatar_url: null },
-        likesCount: (commentLikes.data || []).filter((cl: any) => cl.comment_id === c.id).length,
-        likedByMe: (commentLikes.data || []).some((cl: any) => cl.comment_id === c.id && cl.user_id === user?.id),
-      })),
-      commentsCount: (comments.data || []).length,
-    })
-  }
-
   return (
     <div className="max-w-lg mx-auto">
       {/* Back button when viewing other profile */}
@@ -602,7 +580,11 @@ export function ProfilePage() {
               return (
                 <button
                   key={post.id}
-                  onClick={() => openPost(post)}
+                  onClick={() => {
+                    if (post.status !== 'uploading' && post.status !== 'failed') {
+                      navigate(`/post/${post.id}`)
+                    }
+                  }}
                   className="aspect-square bg-navy-900 overflow-hidden relative group"
                 >
                   {post.status === 'failed' ? (
@@ -651,6 +633,12 @@ export function ProfilePage() {
                           {post.pages.length}
                         </div>
                       )}
+                      {isOwn && (post.viewsCount ?? 0) > 0 && (
+                        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+                          <Eye className="w-2.5 h-2.5" />
+                          {post.viewsCount}
+                        </div>
+                      )}
                     </>
                   )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -660,18 +648,6 @@ export function ProfilePage() {
           </div>
         )}
       </div>
-
-      {/* Post modal */}
-      {selectedPost && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setSelectedPost(null)}>
-          <div className="w-full max-w-lg my-8" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setSelectedPost(null)} className="absolute top-4 right-4 text-white hover:text-red-veon p-2 z-50">
-              <X className="w-6 h-6" />
-            </button>
-            <PostCard post={selectedPost} />
-          </div>
-        </div>
-      )}
 
       {/* Saved toast */}
       {saved && !editing && (

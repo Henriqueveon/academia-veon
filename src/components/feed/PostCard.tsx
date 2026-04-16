@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, forwardRef, memo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic, Eye, UserPlus, UserCheck, Volume2, VolumeX, Shield, ShieldOff, ShieldAlert, X as XIcon, ExternalLink, AlertCircle } from 'lucide-react'
@@ -16,14 +16,15 @@ interface Props {
   post: any
   priority?: boolean   // first visible post → fetchpriority="high" + isInitial=true
   isInitial?: boolean  // counted toward feedReadyStore.initialReadyCount (cold-start unlock)
+  detailMode?: boolean // true when rendered inside PostDetailPage — expands comments, hides nav link
 }
 
-function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
+function PostCardImpl({ post, priority = false, isInitial = false, detailMode = false }: Props) {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [currentPage, setCurrentPage] = useState(0)
-  const [showComments, setShowComments] = useState(false)
+  const [showComments, setShowComments] = useState(detailMode)
   const [newComment, setNewComment] = useState('')
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null)
   const [showMenu, setShowMenu] = useState(false)
@@ -505,7 +506,10 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
       )}
 
       {/* Carousel */}
-      <div className={`relative bg-navy-900 ${isAudioOnly ? 'px-4 py-3' : 'aspect-[4/5]'}`}>
+      <div
+        className={`relative bg-navy-900 ${isAudioOnly ? 'px-4 py-3' : 'aspect-[4/5]'} ${!detailMode && !isAudioOnly && post.status !== 'uploading' && post.status !== 'failed' ? 'cursor-pointer' : ''}`}
+        onClick={!detailMode && !isAudioOnly && post.status !== 'uploading' && post.status !== 'failed' ? () => navigate(`/post/${post.id}`) : undefined}
+      >
         {/* Uploading / failed skeleton overlay (visible only to the author via feed filter) */}
         {(post.status === 'uploading' || post.status === 'failed') && (
           <UploadingMedia post={{ id: post.id, status: post.status, failed_reason: post.failed_reason }} />
@@ -540,6 +544,7 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
                     poster={currentPageData.thumbnail_url || undefined}
                     onCanPlay={onMediaLoad}
                     onError={onMediaError}
+                    onNavigate={!detailMode ? () => navigate(`/post/${post.id}`) : undefined}
                   />
                 )}
                 {currentPageData.type === 'audio' && currentPageData.image_url && (
@@ -561,7 +566,7 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
           <>
             {currentPage > 0 && (
               <button
-                onClick={() => setCurrentPage(currentPage - 1)}
+                onClick={(e) => { e.stopPropagation(); setCurrentPage(currentPage - 1) }}
                 className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -569,7 +574,7 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
             )}
             {currentPage < post.pages.length - 1 && (
               <button
-                onClick={() => setCurrentPage(currentPage + 1)}
+                onClick={(e) => { e.stopPropagation(); setCurrentPage(currentPage + 1) }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -723,12 +728,12 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
 
       {/* Comments toggle */}
       {post.commentsCount > 0 && !showComments && (
-        <button
-          onClick={() => setShowComments(true)}
+        <Link
+          to={`/post/${post.id}`}
           className="px-4 pt-1 text-xs text-text-muted hover:text-text-secondary block"
         >
           Ver {post.commentsCount === 1 ? 'comentário' : `os ${post.commentsCount} comentários`}
-        </button>
+        </Link>
       )}
 
       {/* Comments */}
@@ -809,7 +814,7 @@ export const PostCard = memo(PostCardImpl, (prev, next) => {
   )
 })
 
-const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; onCanPlay?: () => void; onError?: () => void }>(({ src, poster, onCanPlay, onError }, ref) => {
+const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; onCanPlay?: () => void; onError?: () => void; onNavigate?: () => void }>(({ src, poster, onCanPlay, onError, onNavigate }, ref) => {
   const localRef = useRef<HTMLVideoElement>(null)
   // Sync external ref
   useEffect(() => {
@@ -867,7 +872,9 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; o
   }
 
   function handleVideoClick() {
-    if (!localRef.current || holding) return
+    if (holding) return
+    if (onNavigate) { onNavigate(); return }
+    if (!localRef.current) return
     if (localRef.current.paused) localRef.current.play()
     else localRef.current.pause()
   }

@@ -27,6 +27,7 @@ import { FreeProgramWatchPage } from './pages/tripulante/FreeProgramWatchPage'
 import { FreeProgramsPage as GestorFreeProgramsPage } from './pages/gestor/FreeProgramsPage'
 import { FreeProgramEditPage } from './pages/gestor/FreeProgramEditPage'
 import { LessonPage } from './pages/tripulante/LessonPage'
+import { PostDetailPage } from './pages/tripulante/PostDetailPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +59,7 @@ function App() {
               <Route path="/treinamentos/:id/aula/:lessonId" element={<LessonPage />} />
               <Route path="/perfil" element={<ProfilePage />} />
               <Route path="/perfil/:userId" element={<ProfilePage />} />
+              <Route path="/post/:postId" element={<PostDetailPage />} />
               <Route path="/creditos" element={<CreditsPage />} />
               <Route path="/comunidade" element={<FeedPage />} />
               <Route element={<GestorGuard />}>
