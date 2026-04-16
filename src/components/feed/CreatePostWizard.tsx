@@ -40,6 +40,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
   const [linkUrl, setLinkUrl] = useState('')
   const [linkCta, setLinkCta] = useState('')
   const [linkError, setLinkError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const CTA_MAX = 30
 
   function normalizeLink(raw: string): string | null {
@@ -86,7 +87,8 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
   // New flow: DB row is created FIRST with status='uploading', then R2 uploads run
   // in a detached manager. Post is invisible to others until status flips to 'ready'.
   async function submit() {
-    if (!user || !canProceed()) return
+    if (!user || !canProceed() || isSubmitting) return
+    setIsSubmitting(true)
 
     let normalizedLink: string | null = null
     if (isGestor && linkUrl.trim()) {
@@ -237,6 +239,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       console.error(err)
+      setIsSubmitting(false)
       alert(`Erro ao iniciar a publicação:\n\n${msg}\n\nTente novamente.`)
     }
   }
@@ -397,7 +400,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
           {step === 'caption' && (
             <>
               <button onClick={() => setStep('pages')} className="flex-1 bg-bg-input text-text-secondary hover:text-text-primary py-2.5 rounded-lg text-sm">Voltar</button>
-              <button onClick={submit} className="flex-1 bg-red-veon hover:bg-red-veon-dark text-white py-2.5 rounded-lg text-sm font-semibold">Publicar</button>
+              <button onClick={submit} disabled={isSubmitting} className="flex-1 bg-red-veon hover:bg-red-veon-dark text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Publicando...' : 'Publicar'}</button>
             </>
           )}
         </div>

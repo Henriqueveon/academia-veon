@@ -145,23 +145,24 @@ export function FeedPage() {
   }, [data])
 
   // Realtime: listen for new/updated posts and pull them in without reload.
-  // Any INSERT or UPDATE on `posts` triggers a debounced merge of newer posts.
-  // This makes the feed update live when another student posts and their
-  // upload transitions to status='ready'.
+  // Realtime: listen ONLY for UPDATE events on posts.
+  // When a post transitions to status='ready', we fetch and prepend it.
+  // We do NOT listen to INSERT because:
+  //  - New posts are always inserted as status='uploading' (invisible to others)
+  //  - The author already gets instant feedback via cache seeding in CreatePostWizard
+  //  - Listening to INSERT + UPDATE caused duplicate fetches and race conditions
   useEffect(() => {
     if (!user) return
-    const schedule = () => {
-      if (realtimeDebounceRef.current) {
-        window.clearTimeout(realtimeDebounceRef.current)
-      }
-      realtimeDebounceRef.current = window.setTimeout(() => {
-        mergeRef.current().catch(() => {})
-      }, 400)
-    }
     const channel = supabase
       .channel('feed-posts-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, schedule)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, schedule)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, () => {
+        if (realtimeDebounceRef.current) {
+          window.clearTimeout(realtimeDebounceRef.current)
+        }
+        realtimeDebounceRef.current = window.setTimeout(() => {
+          mergeRef.current().catch(() => {})
+        }, 800)
+      })
       .subscribe()
     return () => {
       if (realtimeDebounceRef.current) {
@@ -406,7 +407,9 @@ export function FeedPage() {
           onClose={() => setShowCreate(false)}
           onCreated={() => {
             setShowCreate(false)
-            queryClient.invalidateQueries({ queryKey: ['feed-posts'] })
+            // Cache is already seeded by CreatePostWizard — no invalidation
+            // needed. A full refetch here would race with the Realtime
+            // subscription and potentially duplicate the post in the cache.
           }}
         />
       )}
