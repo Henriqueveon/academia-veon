@@ -80,9 +80,15 @@ export function LessonPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('lesson_likes')
-        .select('id, user_id, profiles(name, avatar_url)')
+        .select('id, user_id')
         .eq('lesson_id', lessonId!)
-      return data || []
+      if (!data?.length) return []
+
+      const userIds = [...new Set(data.map((l: any) => l.user_id))]
+      const { data: profiles } = await supabase.from('profiles').select('id, name, avatar_url').in('id', userIds)
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]))
+
+      return data.map((l: any) => ({ ...l, profile: profileMap.get(l.user_id) || null }))
     },
     enabled: !!lessonId,
   })
@@ -111,10 +117,16 @@ export function LessonPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('lesson_comments')
-        .select('id, body, created_at, user_id, parent_id, profiles(name, avatar_url)')
+        .select('id, body, created_at, user_id, parent_id')
         .eq('lesson_id', lessonId!)
         .order('created_at', { ascending: true })
-      return data || []
+      if (!data?.length) return []
+
+      const userIds = [...new Set(data.map((c: any) => c.user_id))]
+      const { data: profiles } = await supabase.from('profiles').select('id, name, avatar_url').in('id', userIds)
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]))
+
+      return data.map((c: any) => ({ ...c, profile: profileMap.get(c.user_id) || null }))
     },
     enabled: !!lessonId,
   })
@@ -374,8 +386,8 @@ export function LessonPage() {
                 {likes.length > 0 && (
                   <div className="flex -space-x-2">
                     {likes.slice(0, 5).map((l: any) => (
-                      <div key={l.id} className="w-6 h-6 rounded-full border-2 border-bg-primary overflow-hidden bg-navy-800" title={(l as any).profiles?.name}>
-                        {(l as any).profiles?.avatar_url ? (
+                      <div key={l.id} className="w-6 h-6 rounded-full border-2 border-bg-primary overflow-hidden bg-navy-800" title={l.profile?.name}>
+                        {l.profile?.avatar_url ? (
                           <img src={(l as any).profiles.avatar_url} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
@@ -451,7 +463,7 @@ export function LessonPage() {
                 rootComments.map((c: any) => {
                   const isOwn = c.user_id === user?.id
                   const isGestor = profile?.role === 'gestor'
-                  const authorName = c.profiles?.name || 'Aluno'
+                  const authorName = c.profile?.name || 'Aluno'
                   const replies = repliesMap.get(c.id) || []
 
                   return (
@@ -459,7 +471,7 @@ export function LessonPage() {
                       {/* Parent comment */}
                       <div className="flex gap-2.5 group">
                         <div className="w-7 h-7 rounded-full bg-navy-800 overflow-hidden flex-shrink-0 flex items-center justify-center mt-0.5">
-                          {c.profiles?.avatar_url ? (
+                          {c.profile?.avatar_url ? (
                             <img src={c.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <User className="w-3.5 h-3.5 text-text-muted" />
@@ -495,11 +507,11 @@ export function LessonPage() {
                         <div className="ml-9 mt-2 pl-3 border-l-2 border-red-veon/20 space-y-3">
                           {replies.map((r: any) => {
                             const rOwn = r.user_id === user?.id
-                            const rName = r.profiles?.name || 'Aluno'
+                            const rName = r.profile?.name || 'Aluno'
                             return (
                               <div key={r.id} className="flex gap-2 group/reply">
                                 <div className="w-6 h-6 rounded-full bg-navy-800 overflow-hidden flex-shrink-0 flex items-center justify-center mt-0.5">
-                                  {r.profiles?.avatar_url ? (
+                                  {r.profile?.avatar_url ? (
                                     <img src={r.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
                                   ) : (
                                     <User className="w-3 h-3 text-text-muted" />
