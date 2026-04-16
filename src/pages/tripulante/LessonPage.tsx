@@ -397,7 +397,7 @@ export function LessonPage() {
                     {likes.slice(0, 5).map((l: any) => (
                       <div key={l.id} className="w-6 h-6 rounded-full border-2 border-bg-primary overflow-hidden bg-navy-800" title={l.profile?.name}>
                         {l.profile?.avatar_url ? (
-                          <img src={(l as any).profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                          <img src={l.profile?.avatar_url} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <User className="w-3 h-3 text-text-muted" />
@@ -481,7 +481,7 @@ export function LessonPage() {
                       <div className="flex gap-2.5 group">
                         <div className="w-7 h-7 rounded-full bg-navy-800 overflow-hidden flex-shrink-0 flex items-center justify-center mt-0.5">
                           {c.profile?.avatar_url ? (
-                            <img src={c.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                            <img src={c.profile?.avatar_url} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <User className="w-3.5 h-3.5 text-text-muted" />
                           )}
@@ -521,7 +521,7 @@ export function LessonPage() {
                               <div key={r.id} className="flex gap-2 group/reply">
                                 <div className="w-6 h-6 rounded-full bg-navy-800 overflow-hidden flex-shrink-0 flex items-center justify-center mt-0.5">
                                   {r.profile?.avatar_url ? (
-                                    <img src={r.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                                    <img src={r.profile?.avatar_url} alt="" className="w-full h-full object-cover" />
                                   ) : (
                                     <User className="w-3 h-3 text-text-muted" />
                                   )}
