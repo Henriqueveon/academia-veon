@@ -8,7 +8,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { startPostUpload, type UploadTarget, CHUNK_THRESHOLD } from '../../lib/postUploadManager'
 import { useUploadStore } from '../../stores/uploadStore'
 import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause, Link as LinkIcon } from 'lucide-react'
-import fixWebmDuration from 'fix-webm-duration'
 
 const BUNNY_CDN_HOSTNAME = import.meta.env.VITE_BUNNY_CDN_HOSTNAME || 'vz-6d04ab5b-6ae.b-cdn.net'
 
@@ -602,141 +601,49 @@ function ImageInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
 }
 
 // ============ VIDEO INPUT ============
+const isMobileDevice = typeof window !== 'undefined'
+  && window.matchMedia('(hover: none) and (pointer: coarse)').matches
+
 function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<PageData>) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [cameraOn, setCameraOn] = useState(false)
-  const [recording, setRecording] = useState(false)
-  const [recordTime, setRecordTime] = useState(0)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const chunksRef = useRef<Blob[]>([])
-  const timerRef = useRef<number | null>(null)
-  const recordTimeRef = useRef(0)
+  const cameraRef = useRef<HTMLInputElement>(null)
 
-  // Attach stream to video element when camera turns on
-  useEffect(() => {
-    if (cameraOn && videoRef.current && streamRef.current) {
-      videoRef.current.srcObject = streamRef.current
-      videoRef.current.muted = true
-      videoRef.current.play().catch((err) => console.warn('Preview play failed:', err))
-    }
-  }, [cameraOn])
-
-  async function openCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: true,
-      })
-      streamRef.current = stream
-      setCameraOn(true)
-    } catch (err) {
-      alert('Não foi possível acessar a câmera')
-    }
-  }
-
-  function closeCamera() {
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    streamRef.current = null
-    setCameraOn(false)
-  }
-
-  function startRecording() {
-    if (!streamRef.current) return
-    const mimeType = [
-      'video/mp4',
-      'video/webm;codecs=h264,opus',
-      'video/webm;codecs=vp8,opus',
-      'video/webm;codecs=vp8',
-      'video/webm',
-    ].find(m => MediaRecorder.isTypeSupported(m)) ?? ''
-    const recorder = new MediaRecorder(streamRef.current, mimeType ? { mimeType } : {})
-    mediaRecorderRef.current = recorder
-    chunksRef.current = []
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
-    recorder.onstop = async () => {
-      const rawBlob = new Blob(chunksRef.current, { type: mimeType || 'video/webm' })
-      const duration = recordTimeRef.current
-
-      streamRef.current?.getTracks().forEach(t => t.stop())
-      streamRef.current = null
-      setCameraOn(false)
-      if (videoRef.current) videoRef.current.srcObject = null
-
-      let finalBlob = rawBlob
-      if (rawBlob.type.includes('webm')) {
-        try {
-          finalBlob = await fixWebmDuration(rawBlob, duration * 1000)
-        } catch (err) {
-          console.error('fix-webm-duration failed:', err)
-        }
-      }
-
-      const url = URL.createObjectURL(finalBlob)
-      onChange({ file: finalBlob, previewUrl: url, duration })
-      if (videoRef.current) {
-        videoRef.current.src = url
-        videoRef.current.muted = false
-        videoRef.current.style.transform = ''
-      }
-    }
-    recorder.start()
-    setRecording(true)
-    setRecordTime(0)
-    recordTimeRef.current = 0
-    timerRef.current = window.setInterval(() => {
-      setRecordTime(t => {
-        const next = t + 1
-        recordTimeRef.current = next
-        if (next >= MAX_VIDEO_SECONDS) {
-          stopRecording()
-          return MAX_VIDEO_SECONDS
-        }
-        return next
-      })
-    }, 1000)
-  }
-
-  function stopRecording() {
-    mediaRecorderRef.current?.stop()
-    setRecording(false)
-    if (timerRef.current) clearInterval(timerRef.current)
-  }
-
-  useEffect(() => {
-    return () => {
-      streamRef.current?.getTracks().forEach(t => t.stop())
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [])
-
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
     const url = URL.createObjectURL(file)
-    onChange({ file, previewUrl: url })
+
+    const probe = document.createElement('video')
+    probe.preload = 'metadata'
+    probe.src = url
+    const duration = await new Promise<number>((resolve) => {
+      probe.onloadedmetadata = () => resolve(Math.floor(probe.duration) || 0)
+      probe.onerror = () => resolve(0)
+    })
+
+    if (duration > MAX_VIDEO_SECONDS) {
+      URL.revokeObjectURL(url)
+      alert(`O vídeo excede o limite de ${Math.floor(MAX_VIDEO_SECONDS / 60)}min${MAX_VIDEO_SECONDS % 60 ? (MAX_VIDEO_SECONDS % 60) : ''}. Escolha um vídeo mais curto.`)
+      return
+    }
+
+    onChange({ file, previewUrl: url, duration: duration || undefined })
   }
 
   function reset() {
     onChange({ file: undefined, previewUrl: undefined, duration: undefined })
   }
 
-  const showCameraView = cameraOn || recording
-
   return (
     <div className="space-y-3">
       <div className="aspect-[4/5] rounded-xl bg-black overflow-hidden flex items-center justify-center relative">
-        {(showCameraView || page.previewUrl) ? (
+        {page.previewUrl ? (
           <video
-            ref={videoRef}
-            src={!showCameraView ? page.previewUrl : undefined}
+            src={page.previewUrl}
             className="w-full h-full object-cover"
-            style={showCameraView ? { transform: 'scaleX(-1)' } : undefined}
-            controls={!showCameraView}
+            controls
             playsInline
-            autoPlay={showCameraView}
-            muted={showCameraView}
           />
         ) : (
           <div className="text-text-muted text-center">
@@ -745,64 +652,27 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
             <p className="text-xs">Máx. 2min30</p>
           </div>
         )}
-
-        {/* REC indicator */}
-        {recording && (
-          <div className="absolute top-3 left-3 bg-red-veon text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 z-10">
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-            REC {Math.floor(recordTime / 60)}:{(recordTime % 60).toString().padStart(2, '0')}
-          </div>
-        )}
-
-        {/* Close camera button (when in preview, before recording) */}
-        {cameraOn && !recording && (
-          <button
-            onClick={closeCamera}
-            className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full z-10"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* Big record button overlay */}
-        {cameraOn && !recording && (
-          <button
-            onClick={startRecording}
-            className="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-white border-4 border-white/40 flex items-center justify-center shadow-2xl hover:scale-105 transition-transform z-10"
-            title="Iniciar gravação"
-          >
-            <div className="w-12 h-12 rounded-full bg-red-veon" />
-          </button>
-        )}
-
-        {/* Stop button overlay */}
-        {recording && (
-          <button
-            onClick={stopRecording}
-            className="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-white border-4 border-white/40 flex items-center justify-center shadow-2xl hover:scale-105 transition-transform z-10"
-            title="Parar gravação"
-          >
-            <div className="w-7 h-7 rounded bg-red-veon" />
-          </button>
-        )}
       </div>
 
       <div className="flex gap-2">
-        {!page.previewUrl && !cameraOn && !recording && (
+        {!page.previewUrl && (
           <>
-            <button onClick={openCamera} className="flex-1 flex items-center justify-center gap-2 bg-red-veon hover:bg-red-veon-dark text-white text-sm py-2.5 rounded-lg">
-              <Video className="w-4 h-4" /> Abrir câmera
-            </button>
-            <button onClick={() => fileRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 bg-navy-800 hover:bg-navy-700 text-text-secondary hover:text-text-primary text-sm py-2.5 rounded-lg">
+            {isMobileDevice && (
+              <button onClick={() => cameraRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 bg-red-veon hover:bg-red-veon-dark text-white text-sm py-2.5 rounded-lg">
+                <Video className="w-4 h-4" /> Gravar
+              </button>
+            )}
+            <button onClick={() => fileRef.current?.click()} className={`${isMobileDevice ? 'flex-1' : 'w-full'} flex items-center justify-center gap-2 bg-navy-800 hover:bg-navy-700 text-text-secondary hover:text-text-primary text-sm py-2.5 rounded-lg`}>
               Enviar vídeo
             </button>
           </>
         )}
-        {page.previewUrl && !recording && (
+        {page.previewUrl && (
           <button onClick={reset} className="text-xs text-red-veon hover:text-red-veon-dark">Refazer</button>
         )}
       </div>
-      <input ref={fileRef} type="file" accept="video/*" onChange={handleFile} className="hidden" />
+      <input ref={fileRef} type="file" accept="video/mp4,video/quicktime,video/x-m4v" onChange={handleFile} className="hidden" />
+      <input ref={cameraRef} type="file" accept="video/mp4,video/quicktime" capture="user" onChange={handleFile} className="hidden" />
     </div>
   )
 }
