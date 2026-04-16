@@ -32,8 +32,8 @@ export function FreeProgramsListPage() {
     <div>
       {/* Header: logo esquerda + "A Escola do Varejo" direita */}
       <div className="flex items-center justify-between py-4 mb-6 border-b border-white/10">
-        <img src="/veon-logo.png" alt="Instituto Veon" className="h-10 md:h-12 object-contain" />
-        <span className="text-sm md:text-base font-bold italic text-white/90 tracking-wide">A Escola do Varejo</span>
+        <img src="/veon-logo.png" alt="Instituto Veon" className="h-[46px] md:h-[55px] object-contain" />
+        <span className="text-base md:text-lg font-bold italic text-white/90 tracking-wide">A Escola do Varejo</span>
       </div>
 
       <h1 className="text-xl font-bold mb-6">Programas Educacionais</h1>
