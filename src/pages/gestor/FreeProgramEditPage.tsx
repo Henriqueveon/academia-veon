@@ -233,6 +233,9 @@ export function FreeProgramEditPage() {
         <Field label="Título da seção">
           <input className={inputCls} value={form.objective_title} onChange={e => upd('objective_title')(e.target.value)} />
         </Field>
+        <p className="text-xs text-text-muted mt-3 bg-bg-card border border-navy-800 rounded-lg px-3 py-2">
+          💡 Para grifar palavras em vermelho no texto dos cards, envolva entre <code className="text-red-veon font-semibold">**asteriscos duplos**</code>. Exemplo: <code>Como construir o **ápice da eficiência** em Gestão</code>
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
           <Field label="Card 1">
             <textarea rows={4} className={inputCls} value={form.objective_card1_text} onChange={e => upd('objective_card1_text')(e.target.value)} />

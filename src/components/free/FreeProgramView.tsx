@@ -2,6 +2,21 @@ import { useState } from 'react'
 import { Lock, Unlock, Target, Users, TrendingUp, PlayCircle } from 'lucide-react'
 import { VideoPlayer } from '../VideoPlayer'
 
+// Renderiza texto permitindo grifar palavras entre **asteriscos duplos**
+function renderHighlighted(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((p, i) => {
+    if (p.startsWith('**') && p.endsWith('**')) {
+      return (
+        <span key={i} className="text-[#E63946] font-bold">
+          {p.slice(2, -2)}
+        </span>
+      )
+    }
+    return <span key={i}>{p}</span>
+  })
+}
+
 export interface FreeProgram {
   id: string
   slug: string
@@ -202,12 +217,14 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
               return (
                 <div
                   key={i}
-                  className="bg-[#0F1F42]/80 backdrop-blur-sm border-[1.5px] border-[#E63946] rounded-xl p-6 flex flex-col items-center text-center"
+                  className="bg-[#0F1F42]/80 backdrop-blur-sm border-[1.5px] border-[#E63946] rounded-xl p-5 md:p-7 flex items-center gap-4 md:flex-col md:items-start md:gap-5"
                 >
-                  <div className="w-14 h-14 rounded-full bg-[#E63946] flex items-center justify-center mb-4">
-                    <Icon className="w-7 h-7 text-white" />
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#E63946] flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-6 h-6 md:w-7 md:h-7 text-white" />
                   </div>
-                  <p className="text-[#B8C0D0] text-sm leading-relaxed">{card.text}</p>
+                  <p className="text-white text-sm md:text-base leading-relaxed flex-1 md:flex-initial">
+                    {renderHighlighted(card.text)}
+                  </p>
                 </div>
               )
             })}
