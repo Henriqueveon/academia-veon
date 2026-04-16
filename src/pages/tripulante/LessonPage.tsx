@@ -99,9 +99,11 @@ export function LessonPage() {
   const toggleLike = useMutation({
     mutationFn: async () => {
       if (myLike) {
-        await supabase.from('lesson_likes').delete().eq('id', myLike.id)
+        const { error } = await supabase.from('lesson_likes').delete().eq('id', myLike.id)
+        if (error) { console.error('Unlike error:', error); throw error }
       } else {
-        await supabase.from('lesson_likes').insert({ lesson_id: lessonId, user_id: user!.id })
+        const { error } = await supabase.from('lesson_likes').insert({ lesson_id: lessonId, user_id: user!.id })
+        if (error) { console.error('Like error:', error); throw error }
       }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['lesson-likes', lessonId] }),
@@ -115,11 +117,20 @@ export function LessonPage() {
   const { data: allComments = [] } = useQuery({
     queryKey: ['lesson-comments', lessonId],
     queryFn: async () => {
-      const { data } = await supabase
+      // Try with parent_id first, fallback without it
+      let { data, error } = await supabase
         .from('lesson_comments')
         .select('id, body, created_at, user_id, parent_id')
         .eq('lesson_id', lessonId!)
         .order('created_at', { ascending: true })
+      if (error) {
+        const res = await supabase
+          .from('lesson_comments')
+          .select('id, body, created_at, user_id')
+          .eq('lesson_id', lessonId!)
+          .order('created_at', { ascending: true })
+        data = (res.data || []).map((c: any) => ({ ...c, parent_id: null })) as any
+      }
       if (!data?.length) return []
 
       const userIds = [...new Set(data.map((c: any) => c.user_id))]
@@ -144,12 +155,10 @@ export function LessonPage() {
     mutationFn: async () => {
       const text = commentText.trim()
       if (!text) return
-      await supabase.from('lesson_comments').insert({
-        lesson_id: lessonId,
-        user_id: user!.id,
-        parent_id: replyTo?.id || null,
-        body: text,
-      })
+      const row: any = { lesson_id: lessonId, user_id: user!.id, body: text }
+      if (replyTo?.id) row.parent_id = replyTo.id
+      const { error } = await supabase.from('lesson_comments').insert(row)
+      if (error) { console.error('Comment insert error:', error); throw error }
     },
     onSuccess: () => {
       setCommentText('')
