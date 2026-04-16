@@ -43,8 +43,8 @@ export function FreeProgramsListPage() {
               className="bg-bg-card border border-navy-800 rounded-xl overflow-hidden hover:border-red-veon cursor-pointer transition-colors group"
             >
               <div className="w-full aspect-video bg-navy-900 flex items-center justify-center relative overflow-hidden">
-                {p.partner1_photo_url ? (
-                  <img src={p.partner1_photo_url} alt={p.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                {(p.thumbnail_url || p.partner1_photo_url) ? (
+                  <img src={p.thumbnail_url || p.partner1_photo_url} alt={p.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                 ) : (
                   <PlayCircle className="w-14 h-14 text-navy-700" />
                 )}

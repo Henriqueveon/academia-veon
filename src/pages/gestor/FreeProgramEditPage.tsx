@@ -11,6 +11,7 @@ interface FormState {
   title: string
   subtitle: string
   episodes_badge: string
+  thumbnail_url: string
   published: boolean
   visible_to_students: boolean
   cta_button_text: string
@@ -32,7 +33,7 @@ interface FormState {
 }
 
 const EMPTY: FormState = {
-  slug: '', title: '', subtitle: '', episodes_badge: '3 episódios', published: false, visible_to_students: true,
+  slug: '', title: '', subtitle: '', episodes_badge: '3 episódios', thumbnail_url: '', published: false, visible_to_students: true,
   cta_button_text: 'Quero saber mais', cta_button_url: '', webhook_url: '', meta_pixel_id: '',
   objective_title: '', objective_card1_text: '', objective_card2_text: '', objective_card3_text: '',
   partner1_name: '', partner1_role: '', partner1_bio: '', partner1_photo_url: '',
@@ -79,6 +80,7 @@ export function FreeProgramEditPage() {
         title: program.title || '',
         subtitle: program.subtitle || '',
         episodes_badge: program.episodes_badge || '',
+        thumbnail_url: program.thumbnail_url || '',
         published: !!program.published,
         visible_to_students: program.visible_to_students !== false,
         cta_button_text: program.cta_button_text || '',
@@ -209,6 +211,15 @@ export function FreeProgramEditPage() {
             <p className="text-xs text-text-muted bg-bg-card border border-navy-800 rounded-lg px-3 py-2">
               💡 Para grifar palavras em vermelho no Título ou Subtítulo, envolva entre <code className="text-red-veon font-semibold">**asteriscos duplos**</code>. Exemplo: <code>Transforme sua empresa em uma **máquina de vendas**</code>
             </p>
+          </div>
+          <div className="col-span-full">
+            <ImageUpload
+              value={form.thumbnail_url}
+              onChange={(url) => upd('thumbnail_url')(url)}
+              folder="programas"
+              label="Foto de Capa"
+              hint="1280 x 720 px (16:9)"
+            />
           </div>
           <Field label="Badge de episódios">
             <input className={inputCls} value={form.episodes_badge} onChange={e => upd('episodes_badge')(e.target.value)} />
