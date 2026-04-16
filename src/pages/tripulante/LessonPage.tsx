@@ -418,7 +418,7 @@ export function LessonPage() {
             <div className="flex gap-2 mb-6">
               <div className="w-8 h-8 rounded-full bg-navy-800 overflow-hidden flex-shrink-0 flex items-center justify-center">
                 {(profile as any)?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  <img src={(profile as any).avatar_url} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <User className="w-4 h-4 text-text-muted" />
                 )}
