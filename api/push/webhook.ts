@@ -34,6 +34,10 @@ function buildNotificationText(notification: any, actorName: string, extra?: str
       return { title: 'Academia Veon', body: 'Tem novo post no feed!', url: '/comunidade' }
     case 'training_released':
       return { title: 'Academia Veon 🎓', body: extra ? `O Treinamento ${extra} foi liberado para você, boas aulas!` : 'Um novo treinamento foi liberado para você, boas aulas!', url: training_id ? `/treinamentos/${training_id}` : '/treinamentos' }
+    case 'lesson_comment':
+      return { title: 'Academia Veon', body: extra ? `${actorName} comentou na aula "${extra}"` : `${actorName} comentou em uma aula`, url: notification._lesson_url || '/treinamentos' }
+    case 'lesson_like':
+      return { title: 'Academia Veon', body: extra ? `${actorName} curtiu a aula "${extra}"` : `${actorName} curtiu uma aula`, url: notification._lesson_url || '/treinamentos' }
     case 'new_lesson':
       return { title: 'Academia Veon', body: 'Nova aula disponível 🎓', url: lesson_id ? `/treinamentos?aula=${lesson_id}` : '/treinamentos' }
     case 'lead_interest':
@@ -77,6 +81,20 @@ async function fetchTraining(id: string) {
   if (!res.ok) return null
   const data = await res.json()
   return Array.isArray(data) && data.length > 0 ? data[0] : null
+}
+
+async function fetchTrainingIdByLesson(lessonId: string): Promise<string | null> {
+  const lUrl = `${SUPABASE_URL}/rest/v1/lessons?id=eq.${lessonId}&select=module_id`
+  const lRes = await fetch(lUrl, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } })
+  if (!lRes.ok) return null
+  const lData = await lRes.json()
+  if (!Array.isArray(lData) || !lData[0]?.module_id) return null
+
+  const mUrl = `${SUPABASE_URL}/rest/v1/modules?id=eq.${lData[0].module_id}&select=training_id`
+  const mRes = await fetch(mUrl, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } })
+  if (!mRes.ok) return null
+  const mData = await mRes.json()
+  return Array.isArray(mData) && mData[0]?.training_id ? mData[0].training_id : null
 }
 
 async function fetchSubscriptions(userId: string) {
@@ -130,6 +148,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (notification.training_id) {
       const training = await fetchTraining(notification.training_id)
       if (training?.title) extra = training.title
+    }
+
+    // For lesson_comment / lesson_like: resolve lesson title + URL
+    if ((notification.type === 'lesson_comment' || notification.type === 'lesson_like') && notification.lesson_id) {
+      const lUrl = `${SUPABASE_URL}/rest/v1/lessons?id=eq.${notification.lesson_id}&select=title`
+      const lRes = await fetch(lUrl, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } })
+      if (lRes.ok) {
+        const lData = await lRes.json()
+        if (Array.isArray(lData) && lData[0]?.title) extra = lData[0].title
+      }
+      const trainingId = await fetchTrainingIdByLesson(notification.lesson_id)
+      notification._lesson_url = trainingId ? `/treinamentos/${trainingId}/aula/${notification.lesson_id}` : '/treinamentos'
     }
     if (notification.type === 'post_blocked' && notification.post_id) {
       const postUrl = `${SUPABASE_URL}/rest/v1/posts?id=eq.${notification.post_id}&select=blocked_reason`

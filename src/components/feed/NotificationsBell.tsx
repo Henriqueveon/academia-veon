@@ -26,6 +26,8 @@ const NOTIF_LABELS: Record<string, NotifConfig> = {
       ? `O Treinamento ${training} foi liberado para você, boas aulas!`
       : 'Um novo treinamento foi liberado para você, boas aulas!',
   },
+  lesson_comment: { icon: MessageCircle, color: 'text-red-veon', text: (a, lesson) => lesson ? `${a} comentou na aula "${lesson}"` : `${a} comentou em uma aula` },
+  lesson_like: { icon: Heart, color: 'text-red-veon', text: (a, lesson) => lesson ? `${a} curtiu a aula "${lesson}"` : `${a} curtiu uma aula` },
   new_lesson: { icon: BookOpen, color: 'text-yellow-400', text: () => 'Nova aula disponível!' },
   lead_interest: {
     icon: Sparkles,
@@ -103,10 +105,24 @@ export function NotificationsBell() {
         blockedPostsMap = new Map((bps || []).map((p: any) => [p.id, p]))
       }
 
+      // Fetch lesson titles for lesson_comment / lesson_like
+      const lessonIds = [...new Set(
+        data.filter((n: any) => (n.type === 'lesson_comment' || n.type === 'lesson_like') && n.lesson_id).map((n: any) => n.lesson_id)
+      )]
+      let lessonsMap = new Map()
+      if (lessonIds.length > 0) {
+        const { data: lsns } = await supabase
+          .from('lessons')
+          .select('id, title')
+          .in('id', lessonIds)
+        lessonsMap = new Map((lsns || []).map((l: any) => [l.id, l]))
+      }
+
       return data.map((n: any) => ({
         ...n,
         actor: n.actor_id ? actorsMap.get(n.actor_id) : null,
         training: n.training_id ? trainingsMap.get(n.training_id) : null,
+        lesson: n.lesson_id ? lessonsMap.get(n.lesson_id) : null,
         blockedPost: n.type === 'post_blocked' && n.post_id ? blockedPostsMap.get(n.post_id) : null,
       }))
     },
@@ -161,6 +177,14 @@ export function NotificationsBell() {
     // Route based on type
     if (n.type === 'training_released' && n.training_id) {
       navigate(`/treinamentos/${n.training_id}`)
+    } else if ((n.type === 'lesson_comment' || n.type === 'lesson_like') && n.lesson_id) {
+      ;(async () => {
+        const { data: lesson } = await supabase.from('lessons').select('module_id').eq('id', n.lesson_id).single()
+        if (lesson) {
+          const { data: mod } = await supabase.from('modules').select('training_id').eq('id', lesson.module_id).single()
+          if (mod) navigate(`/treinamentos/${mod.training_id}/aula/${n.lesson_id}`)
+        }
+      })()
     } else if (n.type === 'lead_interest' && n.actor_id) {
       // Gestor: abre perfil do aluno interessado
       navigate(`/perfil/${n.actor_id}`)
@@ -229,7 +253,7 @@ export function NotificationsBell() {
             const config = NOTIF_LABELS[n.type] || NOTIF_LABELS.new_post_feed
             const Icon = config.icon
             const actorName = n.actor?.name || 'Alguém'
-            const extra = n.blockedPost?.blocked_reason || n.training?.title || undefined
+            const extra = n.blockedPost?.blocked_reason || n.lesson?.title || n.training?.title || undefined
 
             return (
               <button
