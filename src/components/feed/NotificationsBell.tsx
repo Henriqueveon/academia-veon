@@ -19,6 +19,13 @@ const NOTIF_LABELS: Record<string, NotifConfig> = {
   comment_reply: { icon: MessageCircle, color: 'text-green-400', text: (a) => `${a} respondeu seu comentário` },
   new_post_feed: { icon: FileText, color: 'text-cyan-400', text: () => 'Novo post no feed' },
   followed_user_post: { icon: FileText, color: 'text-cyan-400', text: (a) => `${a} publicou um novo post` },
+  training_released: {
+    icon: BookOpen,
+    color: 'text-green-400',
+    text: (_, training) => training
+      ? `O Treinamento ${training} foi liberado para você, boas aulas!`
+      : 'Um novo treinamento foi liberado para você, boas aulas!',
+  },
   new_lesson: { icon: BookOpen, color: 'text-yellow-400', text: () => 'Nova aula disponível!' },
   lead_interest: {
     icon: Sparkles,
@@ -152,7 +159,9 @@ export function NotificationsBell() {
     setOpen(false)
 
     // Route based on type
-    if (n.type === 'lead_interest' && n.actor_id) {
+    if (n.type === 'training_released' && n.training_id) {
+      navigate(`/treinamentos/${n.training_id}`)
+    } else if (n.type === 'lead_interest' && n.actor_id) {
       // Gestor: abre perfil do aluno interessado
       navigate(`/perfil/${n.actor_id}`)
     } else if (n.type === 'new_lesson' && n.lesson_id) {
@@ -236,6 +245,10 @@ export function NotificationsBell() {
                     // Sem foto do gestor — ícone neutro com escudo
                     <div className="w-10 h-10 rounded-full bg-red-veon/20 border border-red-veon/40 flex items-center justify-center">
                       <ShieldAlert className="w-5 h-5 text-red-veon" />
+                    </div>
+                  ) : n.type === 'training_released' ? (
+                    <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-green-400" />
                     </div>
                   ) : n.type === 'credit_received' ? (
                     // Sem foto — ícone de moeda/carteira em verde

@@ -32,6 +32,8 @@ function buildNotificationText(notification: any, actorName: string, extra?: str
       return { title: 'Academia Veon', body: `${actorName} publicou um novo post`, url: post_id ? `/p/${post_id}` : '/comunidade' }
     case 'new_post_feed':
       return { title: 'Academia Veon', body: 'Tem novo post no feed!', url: '/comunidade' }
+    case 'training_released':
+      return { title: 'Academia Veon 🎓', body: extra ? `O Treinamento ${extra} foi liberado para você, boas aulas!` : 'Um novo treinamento foi liberado para você, boas aulas!', url: training_id ? `/treinamentos/${training_id}` : '/treinamentos' }
     case 'new_lesson':
       return { title: 'Academia Veon', body: 'Nova aula disponível 🎓', url: lesson_id ? `/treinamentos?aula=${lesson_id}` : '/treinamentos' }
     case 'lead_interest':
