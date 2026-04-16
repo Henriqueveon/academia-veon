@@ -41,7 +41,7 @@ function uploadToBunny(file: Blob, creds: BunnyCreds): Promise<void> {
       },
       metadata: { filetype: file.type },
       onError: reject,
-      onSuccess: resolve,
+      onSuccess: () => resolve(),
     })
     upload.start()
   })
