@@ -644,9 +644,13 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
 
   function startRecording() {
     if (!streamRef.current) return
-    const mimeType = ['video/mp4', 'video/webm;codecs=h264', 'video/webm'].find(
-      m => MediaRecorder.isTypeSupported(m)
-    ) ?? ''
+    const mimeType = [
+      'video/mp4',
+      'video/webm;codecs=h264,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=vp8',
+      'video/webm',
+    ].find(m => MediaRecorder.isTypeSupported(m)) ?? ''
     const recorder = new MediaRecorder(streamRef.current, mimeType ? { mimeType } : {})
     mediaRecorderRef.current = recorder
     chunksRef.current = []
