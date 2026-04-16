@@ -44,14 +44,18 @@ export function PublicPostPage() {
         return
       }
 
-      if (data.status !== 'ready') {
-        // Post exists but upload hasn't finished (or is failed). Show a
-        // "processando" state and auto-retry every 3s for up to ~60s.
+      if (data.status === 'failed') {
+        // Upload foi interrompido ou aconteceu algum erro
+        setStatus('missing')
+        setLoading(false)
+        return
+      }
+
+      if (data.status === 'uploading' || data.status === 'processing') {
+        // Post existe mas o upload não foi finalizado ainda.
         setStatus('processing')
         setLoading(false)
-        if (data.status === 'uploading' || data.status === 'processing') {
-          retryTimer = setTimeout(load, 3000)
-        }
+        retryTimer = setTimeout(load, 3000)
         return
       }
 

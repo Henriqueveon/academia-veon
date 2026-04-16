@@ -75,6 +75,11 @@ export function UploadingMedia({ post }: Props) {
             <AlertCircle className="w-10 h-10 text-red-veon" />
             <p className="text-sm font-semibold text-white">Falha no upload</p>
             <p className="text-xs text-text-secondary line-clamp-3">{errorMsg}</p>
+            {!entry?.retryContext && (
+              <p className="text-[11px] text-text-muted mt-1 max-w-[260px]">
+                Esta sessão não pode retomar o envio. Descarte o post e publique novamente.
+              </p>
+            )}
             <div className="flex items-center gap-2 mt-2">
               {entry?.retryContext && (entry.retries ?? 0) < 3 && (
                 <button

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic, Eye, UserPlus, UserCheck, Volume2, VolumeX, Shield, ShieldOff, ShieldAlert, X as XIcon, ExternalLink } from 'lucide-react'
+import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic, Eye, UserPlus, UserCheck, Volume2, VolumeX, Shield, ShieldOff, ShieldAlert, X as XIcon, ExternalLink, AlertCircle } from 'lucide-react'
 import { ShareMenu } from './ShareMenu'
 import { LikesModal } from './LikesModal'
 import { UploadingMedia } from './UploadingMedia'
@@ -386,7 +386,7 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
   const isAudioOnly = post.pages.length > 0 && post.pages.every((p: any) => p.type === 'audio')
 
   return (
-    <div ref={rootRef} className="bg-bg-card border border-navy-800 rounded-2xl overflow-hidden">
+    <div id={`post-${post.id}`} ref={rootRef} className="bg-bg-card border border-navy-800 rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <button
@@ -496,6 +496,14 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
               <p className="opacity-90 truncate">Motivo: {post.blocked_reason}</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Banner de falha */}
+      {post.status === 'failed' && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-red-veon/15 text-red-veon border-y border-red-veon/30 text-xs font-semibold">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="truncate">Falha no upload — toque em Descartar abaixo</span>
         </div>
       )}
 

@@ -155,7 +155,41 @@ export function FeedPage() {
     if (!user) return
     const channel = supabase
       .channel('feed-posts-realtime')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, () => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'posts' }, (payload) => {
+        // Atualizar o cache do feed caso uma das postagens falhar o upload
+        const newRow = payload.new as {
+          id: string
+          user_id: string
+          status: string
+          failed_reason: string | null
+        } | null
+        if (newRow && newRow.user_id === user.id && newRow.status === 'failed') {
+          queryClient.setQueryData<InfiniteData<FeedPage, string | null>>(
+            ['feed-posts', user.id],
+            (old) => {
+              if (!old) return old
+              return {
+                ...old,
+                pages: old.pages.map((p) => ({
+                  ...p,
+                  posts: p.posts.map((post: any) =>
+                    post.id === newRow.id
+                      ? { ...post, status: 'failed', failed_reason: newRow.failed_reason }
+                      : post,
+                  ),
+                })),
+              }
+            },
+          )
+          requestAnimationFrame(() => {
+            const el = document.getElementById(`post-${newRow.id}`)
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          })
+          return
+        }
+
+        // Default path: someone else's post moved (likely uploading → ready).
+        // Debounce and pull newer posts into the cache.
         if (realtimeDebounceRef.current) {
           window.clearTimeout(realtimeDebounceRef.current)
         }
@@ -170,7 +204,7 @@ export function FeedPage() {
       }
       supabase.removeChannel(channel)
     }
-  }, [user])
+  }, [user, queryClient])
 
   // Cold-start scroll lock: only when there's NO cached first page.
   // Releases as soon as INITIAL_BUDGET posts mark themselves ready, or after the failsafe.

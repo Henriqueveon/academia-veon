@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useImageUpload } from '../../hooks/useImageUpload'
-import { Camera, Check, User, Pencil, X, Image as ImageIcon, Video, Mic, Grid3x3, ArrowLeft, ImagePlus, Move, UserPlus, UserCheck } from 'lucide-react'
+import { Camera, Check, User, Pencil, X, Image as ImageIcon, Video, Mic, Grid3x3, ArrowLeft, ImagePlus, Move, UserPlus, UserCheck, AlertCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { PostCard } from '../../components/feed/PostCard'
 import { MediaWithSpinner } from '../../components/ui/MediaWithSpinner'
@@ -605,39 +605,53 @@ export function ProfilePage() {
                   onClick={() => openPost(post)}
                   className="aspect-square bg-navy-900 overflow-hidden relative group"
                 >
-                  {firstPage?.type === 'image' && firstPage.image_url && (
-                    <MediaWithSpinner
-                      src={firstPage.image_url}
-                      alt=""
-                      loading="lazy"
-                      className="w-full h-full object-cover"
-                      containerClassName="w-full h-full"
-                      spinnerSize="sm"
-                      fallback={<ImageIcon className="w-8 h-8 text-text-muted/30" />}
-                    />
-                  )}
-                  {firstPage?.type === 'video' && firstPage.image_url && (
+                  {post.status === 'failed' ? (
+                    <div className="w-full h-full bg-red-veon/10 border border-red-veon/40 flex flex-col items-center justify-center gap-1 px-2 text-center">
+                      <AlertCircle className="w-7 h-7 text-red-veon" />
+                      <span className="text-[11px] font-semibold text-red-veon leading-tight">Upload falhou</span>
+                    </div>
+                  ) : post.status === 'uploading' ? (
+                    <div className="w-full h-full bg-navy-800 flex flex-col items-center justify-center gap-1 animate-pulse">
+                      <Spinner size="sm" />
+                      <span className="text-[11px] font-semibold text-text-secondary">Enviando…</span>
+                    </div>
+                  ) : (
                     <>
-                      <VideoThumbnail src={firstPage.image_url} />
-                      <div className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5">
-                        <Video className="w-3 h-3 text-white" />
-                      </div>
+                      {firstPage?.type === 'image' && firstPage.image_url && (
+                        <MediaWithSpinner
+                          src={firstPage.image_url}
+                          alt=""
+                          loading="lazy"
+                          className="w-full h-full object-cover"
+                          containerClassName="w-full h-full"
+                          spinnerSize="sm"
+                          fallback={<ImageIcon className="w-8 h-8 text-text-muted/30" />}
+                        />
+                      )}
+                      {firstPage?.type === 'video' && firstPage.image_url && (
+                        <>
+                          <VideoThumbnail src={firstPage.image_url} />
+                          <div className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5">
+                            <Video className="w-3 h-3 text-white" />
+                          </div>
+                        </>
+                      )}
+                      {firstPage?.type === 'audio' && (
+                        <div className="w-full h-full bg-gradient-to-br from-green-900/50 to-navy-900 flex items-center justify-center">
+                          <Mic className="w-10 h-10 text-green-400" />
+                        </div>
+                      )}
+                      {!firstPage && (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="w-8 h-8 text-text-muted/30" />
+                        </div>
+                      )}
+                      {post.pages.length > 1 && (
+                        <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
+                          {post.pages.length}
+                        </div>
+                      )}
                     </>
-                  )}
-                  {firstPage?.type === 'audio' && (
-                    <div className="w-full h-full bg-gradient-to-br from-green-900/50 to-navy-900 flex items-center justify-center">
-                      <Mic className="w-10 h-10 text-green-400" />
-                    </div>
-                  )}
-                  {!firstPage && (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon className="w-8 h-8 text-text-muted/30" />
-                    </div>
-                  )}
-                  {post.pages.length > 1 && (
-                    <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
-                      {post.pages.length}
-                    </div>
                   )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
