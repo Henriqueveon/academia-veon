@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { signR2Upload, uploadBlobToR2 } from '../hooks/useMediaUpload'
+import { signR2Upload, initMultipart, uploadBlobToR2, uploadBlobInChunks, toFriendlyError, type MultipartInit } from '../hooks/useMediaUpload'
 import { useUploadStore, type RetryFile } from '../stores/uploadStore'
 
 export type UploadTarget = {
@@ -7,11 +7,14 @@ export type UploadTarget = {
   kind: 'media' | 'thumb'
   file: Blob
   contentType: string
-  uploadUrl: string
+  uploadUrl: string        // used for single-PUT (small files)
   publicUrl: string
+  folder?: string          // needed for re-sign on retry; defaults to 'posts'
+  multipartInit?: MultipartInit  // pre-initialized multipart for large files
 }
 
 const MAX_RETRIES = 3
+export const CHUNK_THRESHOLD = 10 * 1024 * 1024  // 10 MB → use multipart above this
 
 function fileKey(t: { pageId: string; kind: string }) {
   return `${t.pageId}:${t.kind}`
@@ -30,18 +33,26 @@ async function runUploads(postId: string, targets: UploadTarget[]): Promise<void
   }))
 
   store.start(postId, totalBytes, retryContext)
-  // Seed per-file totals so the progress bar has the full denominator immediately.
   for (const t of targets) {
     useUploadStore.getState().updateFile(postId, fileKey(t), 0, t.file.size || 0)
   }
 
   try {
     await Promise.all(
-      targets.map((t) =>
-        uploadBlobToR2(t.uploadUrl, t.file, t.contentType, (loaded, total) => {
+      targets.map((t) => {
+        const onProgress = (loaded: number, total: number) => {
           useUploadStore.getState().updateFile(postId, fileKey(t), loaded, total)
-        }),
-      ),
+        }
+
+        if (t.multipartInit) {
+          // Large file: multipart was pre-initialized in the wizard with the correct publicUrl.
+          return uploadBlobInChunks(t.file, t.multipartInit, onProgress).then(() => {
+            useUploadStore.getState().updateFile(postId, fileKey(t), t.file.size, t.file.size)
+          })
+        }
+
+        return uploadBlobToR2(t.uploadUrl, t.file, t.contentType, onProgress)
+      }),
     )
 
     const { error } = await supabase
@@ -52,12 +63,13 @@ async function runUploads(postId: string, targets: UploadTarget[]): Promise<void
 
     useUploadStore.getState().complete(postId)
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
+    const raw = err instanceof Error ? err.message : String(err)
+    const friendly = toFriendlyError(raw)
     await supabase
       .from('posts')
-      .update({ status: 'failed', failed_reason: msg.slice(0, 500) })
+      .update({ status: 'failed', failed_reason: friendly.slice(0, 500) })
       .eq('id', postId)
-    useUploadStore.getState().fail(postId, msg)
+    useUploadStore.getState().fail(postId, friendly)
     throw err
   }
 }
@@ -83,21 +95,27 @@ export async function retryPostUpload(postId: string, folder: string): Promise<v
     return { byPostId: { ...s.byPostId, [postId]: { ...cur, retries: cur.retries + 1 } } }
   })
 
-  // Re-sign new R2 keys for each file; update post_pages with the new publicUrls.
+  // Re-sign new R2 keys (old signed URLs may have expired).
   const signed: UploadTarget[] = []
   const pageUpdates = new Map<string, { image_url?: string; thumbnail_url?: string }>()
 
   for (const f of entry.retryContext) {
     const ext = f.contentType.includes('jpeg') ? 'jpg' : f.contentType.split('/').pop() || 'bin'
-    const { uploadUrl, publicUrl } = await signR2Upload(folder, f.contentType, ext)
-    signed.push({
-      pageId: f.pageId,
-      kind: f.kind,
-      file: f.file,
-      contentType: f.contentType,
-      uploadUrl,
-      publicUrl,
-    })
+    let uploadUrl = ''
+    let publicUrl = f.publicUrl
+    let multipartInit: MultipartInit | undefined
+
+    if (f.file.size > CHUNK_THRESHOLD) {
+      // Re-init multipart to get a fresh uploadId + correct publicUrl
+      multipartInit = await initMultipart(folder, f.contentType, ext)
+      publicUrl = multipartInit.publicUrl
+    } else {
+      const result = await signR2Upload(folder, f.contentType, ext)
+      uploadUrl = result.uploadUrl
+      publicUrl = result.publicUrl
+    }
+
+    signed.push({ pageId: f.pageId, kind: f.kind, file: f.file, contentType: f.contentType, uploadUrl, publicUrl, folder, multipartInit })
     const patch = pageUpdates.get(f.pageId) || {}
     if (f.kind === 'media') patch.image_url = publicUrl
     else patch.thumbnail_url = publicUrl

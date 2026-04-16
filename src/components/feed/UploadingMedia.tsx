@@ -73,11 +73,11 @@ export function UploadingMedia({ post }: Props) {
         {failed ? (
           <>
             <AlertCircle className="w-10 h-10 text-red-veon" />
-            <p className="text-sm font-semibold text-white">Falha no upload</p>
+            <p className="text-sm font-semibold text-white">Problema ao enviar</p>
             <p className="text-xs text-text-secondary line-clamp-3">{errorMsg}</p>
             {!entry?.retryContext && (
               <p className="text-[11px] text-text-muted mt-1 max-w-[260px]">
-                Esta sessão não pode retomar o envio. Descarte o post e publique novamente.
+                Feche e publique novamente para tentar.
               </p>
             )}
             <div className="flex items-center gap-2 mt-2">
@@ -100,9 +100,9 @@ export function UploadingMedia({ post }: Props) {
         ) : orphaned ? (
           <>
             <AlertCircle className="w-10 h-10 text-yellow-500" />
-            <p className="text-sm font-semibold text-white">Upload interrompido</p>
+            <p className="text-sm font-semibold text-white">Envio não concluído</p>
             <p className="text-xs text-text-secondary">
-              Esta publicação foi iniciada em outra sessão e não pôde ser retomada.
+              Iniciado em outra sessão. Descarte e publique novamente.
             </p>
             <button
               onClick={handleDiscard}

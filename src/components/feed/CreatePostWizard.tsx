@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { signR2Upload } from '../../hooks/useMediaUpload'
+import { signR2Upload, initMultipart, type MultipartInit } from '../../hooks/useMediaUpload'
 import { generateVideoThumbnail } from '../../lib/videoThumbnail'
 import { compressImage } from '../../lib/imageCompression'
 import { useQueryClient } from '@tanstack/react-query'
-import { startPostUpload, type UploadTarget } from '../../lib/postUploadManager'
+import { startPostUpload, type UploadTarget, CHUNK_THRESHOLD } from '../../lib/postUploadManager'
 import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause, Link as LinkIcon } from 'lucide-react'
 
 const CAPTION_MAX = 500
@@ -117,14 +117,28 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         }
       }
 
-      // 2. Pre-sign R2 upload URLs for media + thumbnails so we can persist
-      //    the final publicUrls in post_pages before any byte is shipped.
+      // 2. Obtain R2 upload credentials for media + thumbnails before any byte is shipped.
+      //    Large files (>10 MB) use multipart init — publicUrl is determined here and matches
+      //    what post_pages stores. Small files use a regular pre-signed PUT URL.
+      type MediaSign =
+        | { kind: 'single'; uploadUrl: string; publicUrl: string }
+        | { kind: 'multipart'; init: MultipartInit }
+
       const signedPerPage = await Promise.all(
         pages.map(async (p, i) => {
           const mediaBlob = processedFiles[i]
           const mediaCT = mediaBlob.type || (p.type === 'audio' ? 'audio/webm' : p.type === 'video' ? 'video/webm' : 'image/webp')
           const mediaExt = p.type === 'image' ? (mediaCT === 'image/webp' ? 'webp' : 'jpg') : 'webm'
-          const mediaSigned = await signR2Upload(`posts/${p.type}`, mediaCT, mediaExt)
+          const folder = `posts/${p.type}`
+
+          let mediaSigned: MediaSign
+          if (mediaBlob.size > CHUNK_THRESHOLD) {
+            mediaSigned = { kind: 'multipart', init: await initMultipart(folder, mediaCT, mediaExt) }
+          } else {
+            const { uploadUrl, publicUrl } = await signR2Upload(folder, mediaCT, mediaExt)
+            mediaSigned = { kind: 'single', uploadUrl, publicUrl }
+          }
+
           let thumbSigned = null as Awaited<ReturnType<typeof signR2Upload>> | null
           const thumb = thumbResults[i]
           if (thumb) {
@@ -149,15 +163,18 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         .single()
       if (postErr || !post) throw postErr || new Error('Falha ao criar post')
 
-      // 4. Insert post_pages with the pre-signed publicUrls.
-      const pagesToInsert = pages.map((p, i) => ({
-        post_id: post.id,
-        type: p.type,
-        image_url: signedPerPage[i].mediaSigned.publicUrl,
-        thumbnail_url: signedPerPage[i].thumbSigned?.publicUrl || null,
-        sort_order: i,
-        duration_seconds: p.duration || null,
-      }))
+      // 4. Insert post_pages with the final publicUrls (correct for both single and multipart).
+      const pagesToInsert = pages.map((p, i) => {
+        const ms = signedPerPage[i].mediaSigned
+        return {
+          post_id: post.id,
+          type: p.type,
+          image_url: ms.kind === 'multipart' ? ms.init.publicUrl : ms.publicUrl,
+          thumbnail_url: signedPerPage[i].thumbSigned?.publicUrl || null,
+          sort_order: i,
+          duration_seconds: p.duration || null,
+        }
+      })
       const { data: insertedPages, error: pagesError } = await supabase
         .from('post_pages')
         .insert(pagesToInsert)
@@ -202,13 +219,16 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         const s = signedPerPage[i]
         const pageRow = (insertedPages || [])[i]
         if (!pageRow) continue
+        const ms = s.mediaSigned
         targets.push({
           pageId: pageRow.id,
           kind: 'media',
           file: processedFiles[i],
           contentType: s.mediaCT,
-          uploadUrl: s.mediaSigned.uploadUrl,
-          publicUrl: s.mediaSigned.publicUrl,
+          uploadUrl: ms.kind === 'single' ? ms.uploadUrl : '',
+          publicUrl: ms.kind === 'multipart' ? ms.init.publicUrl : ms.publicUrl,
+          folder: `posts/${pages[i].type}`,
+          multipartInit: ms.kind === 'multipart' ? ms.init : undefined,
         })
         const thumb = thumbResults[i]
         if (s.thumbSigned && thumb) {
@@ -437,7 +457,7 @@ function ImageInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
       {page.previewUrl && (
         <button onClick={() => fileRef.current?.click()} className="text-xs text-red-veon hover:text-red-veon-dark">Trocar foto</button>
       )}
-      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} className="hidden" />
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={handleFile} className="hidden" />
     </div>
   )
 }

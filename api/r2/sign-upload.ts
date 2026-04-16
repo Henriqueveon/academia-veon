@@ -22,6 +22,12 @@ const s3 = new S3Client({
 
 const ALLOWED_FOLDERS = ['posts', 'avatars', 'covers', 'treinamentos', 'modulos', 'aulas', 'programas']
 
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif',
+  'video/mp4', 'video/webm', 'video/quicktime', 'video/mov',
+  'audio/webm', 'audio/mp4', 'audio/mpeg',
+])
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -40,6 +46,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!contentType) {
       return res.status(400).json({ error: 'Missing content type' })
+    }
+
+    if (!ALLOWED_MIME_TYPES.has(contentType)) {
+      return res.status(400).json({ error: 'Tipo de arquivo não permitido' })
     }
 
     const safeExt = (ext || 'bin').replace(/[^a-z0-9]/gi, '').slice(0, 5)
