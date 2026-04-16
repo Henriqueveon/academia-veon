@@ -141,30 +141,47 @@ export function TrainingListPage() {
 
   return (
     <div>
-      {profile && (
-        <div className="bg-bg-card border border-navy-800 rounded-xl p-6 mb-8">
-          <h2 className="text-xl font-bold text-text-primary mb-1">
-            Olá, {profile.name}!
-          </h2>
-          <p className="text-sm text-text-muted mb-4">Aqui está o resumo do seu progresso.</p>
-          <div className="flex gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500" />
-              <span className="text-sm text-text-secondary">
-                <span className="font-semibold text-text-primary">{totalDone}</span> aulas concluídas
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-navy-600" />
-              <span className="text-sm text-text-secondary">
-                <span className="font-semibold text-text-primary">{totalPending}</span> aulas pendentes
-              </span>
+      {/* Header: logo + marquee + saudação */}
+      <div className="mb-8">
+        <div className="flex flex-col items-center gap-2 mb-4">
+          <img src="/veon-logo.png" alt="Instituto Veon" className="h-14 md:h-16 object-contain" />
+          <div className="w-full max-w-md overflow-hidden">
+            <div className="flex w-max animate-marquee-x">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <span
+                  key={i}
+                  aria-hidden={i > 0}
+                  className="px-5 text-[11px] font-semibold tracking-[0.2em] text-text-muted uppercase shrink-0"
+                >
+                  A Escola do Varejo
+                </span>
+              ))}
             </div>
           </div>
         </div>
-      )}
 
-      <h1 className="text-2xl font-bold mb-8">Treinamentos</h1>
+        {profile && (
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <p className="text-base text-text-secondary">
+              Olá, <span className="font-semibold text-text-primary">{profile.name}</span>
+            </p>
+            {totalLessons > 0 && (
+              <div className="flex items-center gap-4 text-xs text-text-muted">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="font-semibold text-text-primary">{totalDone}</span> concluídas
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-navy-600" />
+                  <span className="font-semibold text-text-primary">{totalPending}</span> pendentes
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <h1 className="text-xl font-bold mb-6">Treinamentos</h1>
 
       {trainings.length === 0 && lockedTrainings.length === 0 ? (
         <div className="text-center py-20 text-text-muted">
