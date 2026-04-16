@@ -5,7 +5,7 @@
 -- recebem notificação com link direto para a aula.
 -- ============================================================
 
--- 1) Notifica gestores quando aluno comenta em aula
+-- 1) Notifica gestores quando aluno comenta + notifica autor do comentário pai quando alguém responde
 CREATE OR REPLACE FUNCTION public.notify_gestors_lesson_comment()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -15,10 +15,11 @@ AS $$
 DECLARE
   v_lesson_id uuid;
   v_training_id uuid;
+  v_parent_user_id uuid;
 BEGIN
-  -- Se é resposta (parent_id), busca lesson_id do comentário pai
+  -- Se é resposta (parent_id), busca lesson_id e autor do comentário pai
   IF NEW.parent_id IS NOT NULL THEN
-    SELECT lc.lesson_id INTO v_lesson_id
+    SELECT lc.lesson_id, lc.user_id INTO v_lesson_id, v_parent_user_id
       FROM public.lesson_comments lc
      WHERE lc.id = NEW.parent_id;
   ELSE
@@ -37,6 +38,15 @@ BEGIN
     FROM public.profiles p
    WHERE p.role = 'gestor'
      AND p.id <> NEW.user_id;
+
+  -- Se é resposta, notifica o autor do comentário original (se não for o próprio e não for gestor já notificado)
+  IF v_parent_user_id IS NOT NULL AND v_parent_user_id <> NEW.user_id THEN
+    -- Só insere se o autor do pai não é gestor (gestores já foram notificados acima)
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = v_parent_user_id AND role = 'gestor') THEN
+      INSERT INTO public.notifications (user_id, actor_id, type, lesson_id, training_id, read)
+      VALUES (v_parent_user_id, NEW.user_id, 'lesson_comment_reply', v_lesson_id, v_training_id, false);
+    END IF;
+  END IF;
 
   RETURN NEW;
 END;

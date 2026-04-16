@@ -27,6 +27,7 @@ const NOTIF_LABELS: Record<string, NotifConfig> = {
       : 'Um novo treinamento foi liberado para você, boas aulas!',
   },
   lesson_comment: { icon: MessageCircle, color: 'text-red-veon', text: (a, lesson) => lesson ? `${a} comentou na aula "${lesson}"` : `${a} comentou em uma aula` },
+  lesson_comment_reply: { icon: MessageCircle, color: 'text-red-veon', text: (a, lesson) => lesson ? `${a} respondeu seu comentário na aula "${lesson}"` : `${a} respondeu seu comentário` },
   lesson_like: { icon: Heart, color: 'text-red-veon', text: (a, lesson) => lesson ? `${a} curtiu a aula "${lesson}"` : `${a} curtiu uma aula` },
   new_lesson: { icon: BookOpen, color: 'text-yellow-400', text: () => 'Nova aula disponível!' },
   lead_interest: {
@@ -107,7 +108,7 @@ export function NotificationsBell() {
 
       // Fetch lesson titles for lesson_comment / lesson_like
       const lessonIds = [...new Set(
-        data.filter((n: any) => (n.type === 'lesson_comment' || n.type === 'lesson_like') && n.lesson_id).map((n: any) => n.lesson_id)
+        data.filter((n: any) => (n.type === 'lesson_comment' || n.type === 'lesson_comment_reply' || n.type === 'lesson_like') && n.lesson_id).map((n: any) => n.lesson_id)
       )]
       let lessonsMap = new Map()
       if (lessonIds.length > 0) {
@@ -177,7 +178,7 @@ export function NotificationsBell() {
     // Route based on type
     if (n.type === 'training_released' && n.training_id) {
       navigate(`/treinamentos/${n.training_id}`)
-    } else if ((n.type === 'lesson_comment' || n.type === 'lesson_like') && n.lesson_id) {
+    } else if ((n.type === 'lesson_comment' || n.type === 'lesson_comment_reply' || n.type === 'lesson_like') && n.lesson_id) {
       ;(async () => {
         const { data: lesson } = await supabase.from('lessons').select('module_id').eq('id', n.lesson_id).single()
         if (lesson) {

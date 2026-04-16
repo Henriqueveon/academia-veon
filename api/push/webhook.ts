@@ -36,6 +36,8 @@ function buildNotificationText(notification: any, actorName: string, extra?: str
       return { title: 'Academia Veon 🎓', body: extra ? `O Treinamento ${extra} foi liberado para você, boas aulas!` : 'Um novo treinamento foi liberado para você, boas aulas!', url: training_id ? `/treinamentos/${training_id}` : '/treinamentos' }
     case 'lesson_comment':
       return { title: 'Academia Veon', body: extra ? `${actorName} comentou na aula "${extra}"` : `${actorName} comentou em uma aula`, url: notification._lesson_url || '/treinamentos' }
+    case 'lesson_comment_reply':
+      return { title: 'Academia Veon', body: extra ? `${actorName} respondeu seu comentário na aula "${extra}"` : `${actorName} respondeu seu comentário`, url: notification._lesson_url || '/treinamentos' }
     case 'lesson_like':
       return { title: 'Academia Veon', body: extra ? `${actorName} curtiu a aula "${extra}"` : `${actorName} curtiu uma aula`, url: notification._lesson_url || '/treinamentos' }
     case 'new_lesson':
@@ -151,7 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // For lesson_comment / lesson_like: resolve lesson title + URL
-    if ((notification.type === 'lesson_comment' || notification.type === 'lesson_like') && notification.lesson_id) {
+    if ((notification.type === 'lesson_comment' || notification.type === 'lesson_comment_reply' || notification.type === 'lesson_like') && notification.lesson_id) {
       const lUrl = `${SUPABASE_URL}/rest/v1/lessons?id=eq.${notification.lesson_id}&select=title`
       const lRes = await fetch(lUrl, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } })
       if (lRes.ok) {
