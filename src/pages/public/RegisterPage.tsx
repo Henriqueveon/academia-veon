@@ -138,7 +138,7 @@ export function RegisterPage() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-red-veon border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -147,7 +147,7 @@ export function RegisterPage() {
   // Invalid link
   if (linkError) {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
           <GraduationCap className="w-12 h-12 text-red-veon mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-text-primary mb-2">Link Inválido</h1>
@@ -168,7 +168,7 @@ export function RegisterPage() {
   // Success state
   if (success) {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-text-primary mb-2">Cadastro realizado!</h1>
@@ -190,7 +190,7 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-8">

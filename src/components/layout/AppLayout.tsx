@@ -11,7 +11,7 @@ export function AppLayout() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#0a1019] via-[#0e1e33] to-[#0a1525] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-red-veon border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -23,7 +23,7 @@ export function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary">
+    <div className="min-h-screen bg-gradient-to-br from-[#0a1019] via-[#0e1e33] to-[#0a1525]">
       {/* Mobile top bar (just logo) */}
       <div className="fixed top-0 left-0 right-0 z-30 flex items-center gap-2 bg-bg-sidebar border-b border-navy-800 px-4 py-3 md:hidden">
         <GraduationCap className="w-6 h-6 text-red-veon" />

@@ -113,7 +113,7 @@ export function PublicPostPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-red-veon border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -122,7 +122,7 @@ export function PublicPostPage() {
   if (!post) {
     const isProcessing = status === 'processing'
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center max-w-sm">
           <GraduationCap className="w-12 h-12 text-red-veon mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-text-primary mb-2">
@@ -151,7 +151,7 @@ export function PublicPostPage() {
   const isLoggedIn = !!user
 
   return (
-    <div className="min-h-screen bg-bg-primary">
+    <div className="min-h-screen">
       {/* Top nav */}
       <div className="sticky top-0 z-30 bg-bg-primary/95 backdrop-blur-md border-b border-navy-800">
         <div className="max-w-lg mx-auto flex items-center justify-between px-4 py-3">

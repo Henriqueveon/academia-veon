@@ -119,7 +119,7 @@ export function ViralSignupPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-text-primary mb-2">Bem-vindo à Academia Veon!</h1>
@@ -130,7 +130,7 @@ export function ViralSignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <GraduationCap className="w-12 h-12 text-red-veon mx-auto mb-3" />

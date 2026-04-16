@@ -48,7 +48,7 @@
 }
 
 body {
-  background-color: var(--color-bg-primary);
+  background: linear-gradient(135deg, #0a1019 0%, #0e1e33 50%, #0a1525 100%) fixed;
   color: var(--color-text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
