@@ -6,6 +6,7 @@ import { signR2Upload, initMultipart, type MultipartInit } from '../../hooks/use
 import { compressImage } from '../../lib/imageCompression'
 import { useQueryClient } from '@tanstack/react-query'
 import { startPostUpload, type UploadTarget, CHUNK_THRESHOLD } from '../../lib/postUploadManager'
+import { useUploadStore } from '../../stores/uploadStore'
 import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause, Link as LinkIcon } from 'lucide-react'
 
 const BUNNY_CDN_HOSTNAME = import.meta.env.VITE_BUNNY_CDN_HOSTNAME || 'vz-6d04ab5b-6ae.b-cdn.net'
@@ -28,7 +29,11 @@ async function createBunnyVideo(title: string): Promise<BunnyCreds> {
   return res.json()
 }
 
-function uploadToBunny(file: Blob, creds: BunnyCreds): Promise<void> {
+function uploadToBunny(
+  file: Blob,
+  creds: BunnyCreds,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const upload = new tus.Upload(file, {
       endpoint: creds.tusEndpoint,
@@ -40,6 +45,7 @@ function uploadToBunny(file: Blob, creds: BunnyCreds): Promise<void> {
         LibraryId: creds.libraryId,
       },
       metadata: { filetype: file.type },
+      onProgress: (loaded, total) => onProgress?.(loaded, total),
       onError: reject,
       onSuccess: () => resolve(),
     })
@@ -227,7 +233,12 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         onCreated()
 
         // 5. TUS uploads em background + aguarda transcodagem → marca ready
+        const store = useUploadStore.getState()
+        const totalBytes = pages.reduce((acc, p) => acc + (p.file?.size ?? 0), 0)
+        store.start(post.id, totalBytes)
+
         const markReady = () => {
+          useUploadStore.getState().complete(post.id)
           queryClient.setQueryData<any>(feedKey, (old: any) => {
             if (!old) return old
             return {
@@ -241,14 +252,18 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         }
 
         Promise.all(
-          pages.map((p, i) => uploadToBunny(p.file!, bunnyCredsPerPage[i]))
+          pages.map((p, i) =>
+            uploadToBunny(p.file!, bunnyCredsPerPage[i], (loaded, total) => {
+              useUploadStore.getState().updateFile(post.id, bunnyCredsPerPage[i].videoId, loaded, total)
+            })
+          )
         ).then(async () => {
-          // Aguarda Bunny finalizar a transcodagem de todos os vídeos
           await Promise.all(bunnyCredsPerPage.map(c => waitForBunnyEncoding(c.videoId)))
           await supabase.from('posts').update({ status: 'ready' }).eq('id', post.id)
           markReady()
         }).catch(err => {
           console.error('Bunny upload error:', err)
+          useUploadStore.getState().fail(post.id, err?.message ?? 'Erro no upload')
         })
 
         return
