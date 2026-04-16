@@ -226,12 +226,9 @@ function PostCardImpl({ post, priority = false, isInitial = false }: Props) {
 
   // Toggle comment like (optimistic)
   const toggleCommentLike = useMutation({
-    mutationFn: async ({ commentId, liked }: { commentId: string; liked: boolean }) => {
-      if (liked) {
-        await supabase.from('comment_likes').delete().eq('user_id', user!.id).eq('comment_id', commentId)
-      } else {
-        await supabase.from('comment_likes').insert({ user_id: user!.id, comment_id: commentId })
-      }
+    mutationFn: async ({ commentId }: { commentId: string; liked: boolean }) => {
+      const { error } = await supabase.rpc('toggle_comment_like', { p_comment_id: commentId })
+      if (error) throw error
     },
     onMutate: async ({ commentId }) => {
       await queryClient.cancelQueries({ queryKey: feedKey })
