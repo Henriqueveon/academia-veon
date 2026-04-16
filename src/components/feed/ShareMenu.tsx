@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { X, Users, MessageCircle, Instagram, Facebook, Check, Search, Send, User } from 'lucide-react'
+import { X, Users, MessageCircle, Instagram, Facebook, Check, Search, Send, User, Link } from 'lucide-react'
+import type { InfiniteData } from '@tanstack/react-query'
 
 interface Props {
   post: any
   onClose: () => void
 }
+
+type ShareMethod = 'friends' | 'whatsapp' | 'instagram' | 'facebook' | 'copy_link'
 
 export function ShareMenu({ post, onClose }: Props) {
   const { user } = useAuth()
@@ -20,23 +23,41 @@ export function ShareMenu({ post, onClose }: Props) {
 
   const publicUrl = `${window.location.origin}/p/${post.id}${user ? `?ref=${user.id}` : ''}`
 
-  // Copy link on mount
-  useState(() => {
-    navigator.clipboard.writeText(publicUrl).then(() => setLinkCopied(true)).catch(() => {})
-  })
+  async function registerShare(method: ShareMethod) {
+    if (!user) return
+    await supabase.from('post_shares').insert({
+      post_id: post.id,
+      sender_id: user.id,
+      recipient_id: null,
+      method,
+    })
+    // Optimistic update: increment sharesCount in cache
+    queryClient.setQueriesData<InfiniteData<{ posts: any[]; nextCursor: string | null }>>(
+      { queryKey: ['feed'] },
+      (old) => {
+        if (!old) return old
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            posts: page.posts.map((p: any) =>
+              p.id === post.id ? { ...p, sharesCount: (p.sharesCount ?? 0) + 1 } : p
+            ),
+          })),
+        }
+      }
+    )
+  }
 
-  // Fetch following list, or suggestions if few following
   const { data: candidates = [] } = useQuery({
     queryKey: ['share-candidates', user?.id],
     queryFn: async () => {
-      // Who I follow
       const { data: follows } = await supabase
         .from('follows')
         .select('following_id')
         .eq('follower_id', user!.id)
       const followingIds = (follows || []).map((f: any) => f.following_id)
 
-      // Get their profiles
       let profiles: any[] = []
       if (followingIds.length > 0) {
         const { data } = await supabase
@@ -46,7 +67,6 @@ export function ShareMenu({ post, onClose }: Props) {
         profiles = data || []
       }
 
-      // If few, also fetch suggestions (other users, excluding self + already following)
       if (profiles.length < 10) {
         const excludeIds = [...followingIds, user!.id]
         const { data: suggestions } = await supabase
@@ -79,9 +99,9 @@ export function ShareMenu({ post, onClose }: Props) {
         post_id: post.id,
         sender_id: user!.id,
         recipient_id: id,
+        method: 'friends' as ShareMethod,
       }))
       await supabase.from('post_shares').insert(rows)
-      // Create notifications
       await Promise.all(
         selectedIds.map((recipientId) =>
           supabase.rpc('create_notification', {
@@ -95,6 +115,24 @@ export function ShareMenu({ post, onClose }: Props) {
     },
     onSuccess: () => {
       setSent(true)
+      // Optimistic update for friends share (multiple recipients = multiple rows)
+      queryClient.setQueriesData<InfiniteData<{ posts: any[]; nextCursor: string | null }>>(
+        { queryKey: ['feed'] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              posts: page.posts.map((p: any) =>
+                p.id === post.id
+                  ? { ...p, sharesCount: (p.sharesCount ?? 0) + selectedIds.length }
+                  : p
+              ),
+            })),
+          }
+        }
+      )
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
       setTimeout(() => onClose(), 1500)
     },
@@ -107,16 +145,18 @@ export function ShareMenu({ post, onClose }: Props) {
   }
 
   function shareWhatsApp() {
+    registerShare('whatsapp')
     const text = `Olha esse post da Academia Veon: ${publicUrl}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   function shareFacebook() {
+    registerShare('facebook')
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`, '_blank')
   }
 
   async function shareInstagramStories() {
-    // Try native share (works on mobile and offers Stories option)
+    registerShare('instagram')
     if (navigator.share) {
       try {
         await navigator.share({
@@ -126,11 +166,18 @@ export function ShareMenu({ post, onClose }: Props) {
         })
       } catch {}
     } else {
-      // Desktop: open Instagram with URL copied to clipboard
       await navigator.clipboard.writeText(publicUrl)
       alert('Link copiado! Abra o Instagram e cole no seu story.')
       window.open('https://www.instagram.com/', '_blank')
     }
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(publicUrl)
+      setLinkCopied(true)
+      registerShare('copy_link')
+    } catch {}
   }
 
   return (
@@ -149,16 +196,9 @@ export function ShareMenu({ post, onClose }: Props) {
           </button>
         </div>
 
-        {/* Link copied indicator */}
-        {linkCopied && step === 'options' && (
-          <div className="mx-4 mt-3 bg-green-900/20 border border-green-800/50 text-green-400 text-xs px-3 py-2 rounded-lg flex items-center gap-2">
-            <Check className="w-3.5 h-3.5" /> Link copiado!
-          </div>
-        )}
-
         {/* Options */}
         {step === 'options' && (
-          <div className="p-6">
+          <div className="p-6 flex flex-col gap-4">
             <div className="grid grid-cols-4 gap-3">
               <button
                 onClick={() => setStep('internal')}
@@ -200,6 +240,22 @@ export function ShareMenu({ post, onClose }: Props) {
                 <span className="text-xs text-text-secondary text-center leading-tight">Facebook</span>
               </button>
             </div>
+
+            {/* Copy link */}
+            <button
+              onClick={copyLink}
+              className="flex items-center gap-3 w-full bg-bg-input hover:bg-navy-800 border border-navy-700 rounded-xl px-4 py-3 transition-colors"
+            >
+              <div className="w-9 h-9 rounded-full bg-navy-700 flex items-center justify-center flex-shrink-0">
+                {linkCopied ? <Check className="w-4 h-4 text-green-400" /> : <Link className="w-4 h-4 text-text-muted" />}
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="text-sm font-medium text-text-primary">
+                  {linkCopied ? 'Link copiado!' : 'Copiar link'}
+                </p>
+                <p className="text-xs text-text-muted truncate">{publicUrl}</p>
+              </div>
+            </button>
           </div>
         )}
 
@@ -244,7 +300,7 @@ export function ShareMenu({ post, onClose }: Props) {
                           {c.profession && ` · ${c.profession}`}
                         </p>
                       </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
                         isSelected ? 'bg-red-veon border-red-veon' : 'border-navy-600'
                       }`}>
                         {isSelected && <Check className="w-3 h-3 text-white" />}
