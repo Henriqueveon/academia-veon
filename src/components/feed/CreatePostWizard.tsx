@@ -1,12 +1,66 @@
 import { useState, useRef, useEffect } from 'react'
+import * as tus from 'tus-js-client'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { signR2Upload, initMultipart, type MultipartInit } from '../../hooks/useMediaUpload'
-import { generateVideoThumbnail } from '../../lib/videoThumbnail'
 import { compressImage } from '../../lib/imageCompression'
 import { useQueryClient } from '@tanstack/react-query'
 import { startPostUpload, type UploadTarget, CHUNK_THRESHOLD } from '../../lib/postUploadManager'
 import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause, Link as LinkIcon } from 'lucide-react'
+
+const BUNNY_CDN_HOSTNAME = import.meta.env.VITE_BUNNY_CDN_HOSTNAME || 'vz-6d04ab5b-6ae.b-cdn.net'
+
+type BunnyCreds = {
+  videoId: string
+  libraryId: string
+  tusEndpoint: string
+  authSignature: string
+  authExpire: number
+}
+
+async function createBunnyVideo(title: string): Promise<BunnyCreds> {
+  const res = await fetch('/api/bunny/create-video', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  })
+  if (!res.ok) throw new Error('Falha ao criar vídeo no Bunny')
+  return res.json()
+}
+
+function uploadToBunny(file: Blob, creds: BunnyCreds): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const upload = new tus.Upload(file, {
+      endpoint: creds.tusEndpoint,
+      retryDelays: [0, 3000, 5000, 10000],
+      headers: {
+        AuthorizationSignature: creds.authSignature,
+        AuthorizationExpire: creds.authExpire.toString(),
+        VideoId: creds.videoId,
+        LibraryId: creds.libraryId,
+      },
+      metadata: { filetype: file.type },
+      onError: reject,
+      onSuccess: resolve,
+    })
+    upload.start()
+  })
+}
+
+async function waitForBunnyEncoding(videoId: string, maxMs = 300_000): Promise<void> {
+  const interval = 5000
+  const start = Date.now()
+  while (Date.now() - start < maxMs) {
+    await new Promise(r => setTimeout(r, interval))
+    try {
+      const res = await fetch(`/api/bunny/video-status?videoId=${videoId}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.ready) return
+      }
+    } catch { /* keep polling */ }
+  }
+}
 
 const CAPTION_MAX = 500
 const MAX_PAGES = 5
@@ -102,24 +156,116 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
     setLinkError(null)
 
     try {
-      // 1a. Compress images client-side (WebP @0.85, max 1920px) so we send less to R2.
-      // 1b. Generate WebP thumbnails for video pages up-front.
-      const processedFiles: Blob[] = []
-      const thumbResults: (Awaited<ReturnType<typeof generateVideoThumbnail>>)[] = []
-      for (let i = 0; i < pages.length; i++) {
-        const p = pages[i]
-        if (p.type === 'image') {
-          processedFiles[i] = await compressImage(p.file!).catch(() => p.file!)
-          thumbResults[i] = null
-        } else {
-          processedFiles[i] = p.file!
-          thumbResults[i] = p.type === 'video' ? await generateVideoThumbnail(p.file!).catch(() => null) : null
+      const isVideoPost = postType === 'video'
+      const feedKey = ['feed-posts', user.id]
+      const currentProfile = queryClient.getQueryData<any>(['profile', user.id])
+
+      // ── VIDEO PATH: upload direto para o Bunny Stream (transcodagem para MP4) ──
+      if (isVideoPost) {
+        // 1. Criar entrada de vídeo no Bunny para cada página
+        const bunnyCredsPerPage = await Promise.all(
+          pages.map((_, i) => createBunnyVideo(`post-${user.id}-${Date.now()}-${i}`))
+        )
+
+        // 2. Criar post row
+        const { data: post, error: postErr } = await supabase
+          .from('posts')
+          .insert({
+            user_id: user.id,
+            caption: caption.trim() || null,
+            status: 'uploading',
+            link_url: normalizedLink,
+            link_cta: normalizedLink ? (linkCta.trim() || null) : null,
+          })
+          .select()
+          .single()
+        if (postErr || !post) throw postErr || new Error('Falha ao criar post')
+
+        // 3. Inserir post_pages com as URLs do CDN do Bunny
+        //    thumbnail_url usa a thumbnail automática gerada pelo Bunny após transcodagem
+        const pagesToInsert = pages.map((p, i) => {
+          const { videoId } = bunnyCredsPerPage[i]
+          return {
+            post_id: post.id,
+            type: p.type,
+            image_url: `https://${BUNNY_CDN_HOSTNAME}/${videoId}/play_720p.mp4`,
+            thumbnail_url: `https://${BUNNY_CDN_HOSTNAME}/${videoId}/thumbnail.jpg`,
+            sort_order: i,
+            duration_seconds: p.duration || null,
+          }
+        })
+        const { data: insertedPages, error: pagesError } = await supabase
+          .from('post_pages')
+          .insert(pagesToInsert)
+          .select()
+        if (pagesError) throw pagesError
+
+        // 4. Seeda o cache e fecha o modal
+        const cachedPost = {
+          ...post,
+          link_url: normalizedLink,
+          link_cta: normalizedLink ? (linkCta.trim() || null) : null,
+          author: {
+            name: currentProfile?.name || 'Você',
+            avatar_url: currentProfile?.avatar_url || null,
+            profession: currentProfile?.profession || null,
+          },
+          pages: insertedPages || [],
+          likes: [],
+          likedByMe: false,
+          likesCount: 0,
+          comments: [],
+          commentsCount: 0,
+          sharesCount: 0,
         }
+        queryClient.setQueryData<any>(feedKey, (old: any) => {
+          if (!old) return { pages: [{ posts: [cachedPost], nextCursor: null }], pageParams: [null] }
+          const newPages = [...old.pages]
+          newPages[0] = { ...newPages[0], posts: [cachedPost, ...(newPages[0]?.posts || [])] }
+          return { ...old, pages: newPages }
+        })
+        onCreated()
+
+        // 5. TUS uploads em background + aguarda transcodagem → marca ready
+        const markReady = () => {
+          queryClient.setQueryData<any>(feedKey, (old: any) => {
+            if (!old) return old
+            return {
+              ...old,
+              pages: old.pages.map((page: any) => ({
+                ...page,
+                posts: page.posts.map((pp: any) => (pp.id === post.id ? { ...pp, status: 'ready' } : pp)),
+              })),
+            }
+          })
+        }
+
+        Promise.all(
+          pages.map((p, i) => uploadToBunny(p.file!, bunnyCredsPerPage[i]))
+        ).then(async () => {
+          // Aguarda Bunny finalizar a transcodagem de todos os vídeos
+          await Promise.all(bunnyCredsPerPage.map(c => waitForBunnyEncoding(c.videoId)))
+          await supabase.from('posts').update({ status: 'ready' }).eq('id', post.id)
+          markReady()
+        }).catch(err => {
+          console.error('Bunny upload error:', err)
+        })
+
+        return
       }
 
-      // 2. Obtain R2 upload credentials for media + thumbnails before any byte is shipped.
-      //    Large files (>10 MB) use multipart init — publicUrl is determined here and matches
-      //    what post_pages stores. Small files use a regular pre-signed PUT URL.
+      // ── IMAGEM / ÁUDIO PATH: upload para R2 (sem mudança) ──
+
+      // 1. Comprime imagens
+      const processedFiles: Blob[] = []
+      for (let i = 0; i < pages.length; i++) {
+        const p = pages[i]
+        processedFiles[i] = p.type === 'image'
+          ? await compressImage(p.file!).catch(() => p.file!)
+          : p.file!
+      }
+
+      // 2. Assina uploads no R2
       type MediaSign =
         | { kind: 'single'; uploadUrl: string; publicUrl: string }
         | { kind: 'multipart'; init: MultipartInit }
@@ -127,7 +273,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
       const signedPerPage = await Promise.all(
         pages.map(async (p, i) => {
           const mediaBlob = processedFiles[i]
-          const mediaCT = mediaBlob.type || (p.type === 'audio' ? 'audio/webm' : p.type === 'video' ? 'video/webm' : 'image/webp')
+          const mediaCT = mediaBlob.type || (p.type === 'audio' ? 'audio/webm' : 'image/webp')
           const mediaExt = p.type === 'image' ? (mediaCT === 'image/webp' ? 'webp' : 'jpg') : 'webm'
           const folder = `posts/${p.type}`
 
@@ -138,18 +284,11 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
             const { uploadUrl, publicUrl } = await signR2Upload(folder, mediaCT, mediaExt)
             mediaSigned = { kind: 'single', uploadUrl, publicUrl }
           }
-
-          let thumbSigned = null as Awaited<ReturnType<typeof signR2Upload>> | null
-          const thumb = thumbResults[i]
-          if (thumb) {
-            const thumbExt = thumb.mime === 'image/webp' ? 'webp' : 'jpg'
-            thumbSigned = await signR2Upload('posts/thumbnails', thumb.mime, thumbExt)
-          }
-          return { mediaSigned, thumbSigned, mediaCT }
+          return { mediaSigned, mediaCT }
         }),
       )
 
-      // 3. Create the real posts row (status defaults to 'uploading').
+      // 3. Cria post row
       const { data: post, error: postErr } = await supabase
         .from('posts')
         .insert({
@@ -163,14 +302,14 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         .single()
       if (postErr || !post) throw postErr || new Error('Falha ao criar post')
 
-      // 4. Insert post_pages with the final publicUrls (correct for both single and multipart).
+      // 4. Insere post_pages
       const pagesToInsert = pages.map((p, i) => {
         const ms = signedPerPage[i].mediaSigned
         return {
           post_id: post.id,
           type: p.type,
           image_url: ms.kind === 'multipart' ? ms.init.publicUrl : ms.publicUrl,
-          thumbnail_url: signedPerPage[i].thumbSigned?.publicUrl || null,
+          thumbnail_url: null,
           sort_order: i,
           duration_seconds: p.duration || null,
         }
@@ -181,9 +320,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         .select()
       if (pagesError) throw pagesError
 
-      // 5. Seed the React Query cache so the skeleton shows immediately.
-      const currentProfile = queryClient.getQueryData<any>(['profile', user.id])
-      const feedKey = ['feed-posts', user.id]
+      // 5. Seeda o cache
       const cachedPost = {
         ...post,
         link_url: normalizedLink,
@@ -202,18 +339,16 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         sharesCount: 0,
       }
       queryClient.setQueryData<any>(feedKey, (old: any) => {
-        if (!old) {
-          return { pages: [{ posts: [cachedPost], nextCursor: null }], pageParams: [null] }
-        }
+        if (!old) return { pages: [{ posts: [cachedPost], nextCursor: null }], pageParams: [null] }
         const newPages = [...old.pages]
         newPages[0] = { ...newPages[0], posts: [cachedPost, ...(newPages[0]?.posts || [])] }
         return { ...old, pages: newPages }
       })
 
-      // 6. Close the modal.
+      // 6. Fecha modal
       onCreated()
 
-      // 7. Build upload targets and hand off to the manager (fire-and-forget).
+      // 7. Upload R2 em background
       const targets: UploadTarget[] = []
       for (let i = 0; i < pages.length; i++) {
         const s = signedPerPage[i]
@@ -230,21 +365,8 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
           folder: `posts/${pages[i].type}`,
           multipartInit: ms.kind === 'multipart' ? ms.init : undefined,
         })
-        const thumb = thumbResults[i]
-        if (s.thumbSigned && thumb) {
-          targets.push({
-            pageId: pageRow.id,
-            kind: 'thumb',
-            file: thumb.blob,
-            contentType: thumb.mime,
-            uploadUrl: s.thumbSigned.uploadUrl,
-            publicUrl: s.thumbSigned.publicUrl,
-          })
-        }
       }
 
-      // When the manager finishes, flip the cached row's status to 'ready' so
-      // the skeleton morphs into the real media without a refetch.
       startPostUpload(post.id, targets).then(() => {
         queryClient.setQueryData<any>(feedKey, (old: any) => {
           if (!old) return old
