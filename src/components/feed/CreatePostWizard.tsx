@@ -641,12 +641,15 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
 
   function startRecording() {
     if (!streamRef.current) return
-    const recorder = new MediaRecorder(streamRef.current, { mimeType: 'video/webm' })
+    const mimeType = ['video/mp4', 'video/webm;codecs=h264', 'video/webm'].find(
+      m => MediaRecorder.isTypeSupported(m)
+    ) ?? ''
+    const recorder = new MediaRecorder(streamRef.current, mimeType ? { mimeType } : {})
     mediaRecorderRef.current = recorder
     chunksRef.current = []
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' })
+      const blob = new Blob(chunksRef.current, { type: mimeType || 'video/webm' })
       const url = URL.createObjectURL(blob)
       onChange({ file: blob, previewUrl: url, duration: recordTime })
       streamRef.current?.getTracks().forEach(t => t.stop())
