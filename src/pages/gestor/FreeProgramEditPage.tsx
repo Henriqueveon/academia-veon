@@ -12,6 +12,7 @@ interface FormState {
   subtitle: string
   episodes_badge: string
   published: boolean
+  visible_to_students: boolean
   cta_button_text: string
   cta_button_url: string
   webhook_url: string
@@ -31,7 +32,7 @@ interface FormState {
 }
 
 const EMPTY: FormState = {
-  slug: '', title: '', subtitle: '', episodes_badge: '3 episódios', published: false,
+  slug: '', title: '', subtitle: '', episodes_badge: '3 episódios', published: false, visible_to_students: true,
   cta_button_text: 'Quero saber mais', cta_button_url: '', webhook_url: '', meta_pixel_id: '',
   objective_title: '', objective_card1_text: '', objective_card2_text: '', objective_card3_text: '',
   partner1_name: '', partner1_role: '', partner1_bio: '', partner1_photo_url: '',
@@ -79,6 +80,7 @@ export function FreeProgramEditPage() {
         subtitle: program.subtitle || '',
         episodes_badge: program.episodes_badge || '',
         published: !!program.published,
+        visible_to_students: program.visible_to_students !== false,
         cta_button_text: program.cta_button_text || '',
         cta_button_url: program.cta_button_url || '',
         webhook_url: program.webhook_url || '',
@@ -220,6 +222,17 @@ export function FreeProgramEditPage() {
                 className="w-5 h-5 accent-red-veon"
               />
               <span className="text-sm text-text-secondary">{form.published ? 'Publicado (visível ao público)' : 'Rascunho'}</span>
+            </label>
+          </Field>
+          <Field label="Visível para o aluno?">
+            <label className="flex items-center gap-3 h-10">
+              <input
+                type="checkbox"
+                checked={form.visible_to_students}
+                onChange={e => upd('visible_to_students')(e.target.checked)}
+                className="w-5 h-5 accent-red-veon"
+              />
+              <span className="text-sm text-text-secondary">{form.visible_to_students ? 'Sim — aparece no painel do aluno' : 'Não — oculto para alunos'}</span>
             </label>
           </Field>
           <Field label="Texto do botão CTA">

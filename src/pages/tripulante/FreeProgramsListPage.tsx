@@ -13,6 +13,7 @@ export function FreeProgramsListPage() {
         .from('free_programs')
         .select('*')
         .eq('published', true)
+        .eq('visible_to_students', true)
         .order('created_at', { ascending: false })
       if (error) throw error
       return data || []

@@ -98,6 +98,11 @@ export function FreeProgramsPage() {
                 <span className={`flex items-center gap-1 ${p.published ? 'text-green-400' : 'text-yellow-400'}`}>
                   {p.published ? <><Eye className="w-3 h-3" /> Publicado</> : <><EyeOff className="w-3 h-3" /> Rascunho</>}
                 </span>
+                {p.visible_to_students === false && (
+                  <span className="flex items-center gap-1 text-orange-400">
+                    <EyeOff className="w-3 h-3" /> Oculto p/ alunos
+                  </span>
+                )}
               </div>
             </div>
           ))}
