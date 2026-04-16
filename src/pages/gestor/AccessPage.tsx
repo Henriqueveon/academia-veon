@@ -85,7 +85,7 @@ export function AccessPage() {
                           <button
                             onClick={() => toggleAccess.mutate({ trainingId: t.id, groupId: g.id, grant: !granted })}
                             className={`w-10 h-6 rounded-full transition-colors ${
-                              granted ? 'bg-green-600' : 'bg-navy-700'
+                              granted ? 'bg-red-veon' : 'bg-navy-700'
                             } relative`}
                           >
                             <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${

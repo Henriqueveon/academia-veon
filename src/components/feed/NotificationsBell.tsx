@@ -21,7 +21,7 @@ const NOTIF_LABELS: Record<string, NotifConfig> = {
   followed_user_post: { icon: FileText, color: 'text-cyan-400', text: (a) => `${a} publicou um novo post` },
   training_released: {
     icon: BookOpen,
-    color: 'text-green-400',
+    color: 'text-red-veon',
     text: (_, training) => training
       ? `O Treinamento ${training} foi liberado para você, boas aulas!`
       : 'Um novo treinamento foi liberado para você, boas aulas!',
@@ -247,8 +247,8 @@ export function NotificationsBell() {
                       <ShieldAlert className="w-5 h-5 text-red-veon" />
                     </div>
                   ) : n.type === 'training_released' ? (
-                    <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center">
-                      <BookOpen className="w-5 h-5 text-green-400" />
+                    <div className="w-10 h-10 rounded-full bg-red-veon/20 border border-red-veon/40 flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-red-veon" />
                     </div>
                   ) : n.type === 'credit_received' ? (
                     // Sem foto — ícone de moeda/carteira em verde

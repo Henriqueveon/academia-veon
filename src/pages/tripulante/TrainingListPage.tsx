@@ -155,7 +155,7 @@ export function TrainingListPage() {
           {totalLessons > 0 && (
             <div className="flex items-center gap-4 text-xs text-text-muted">
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="w-2 h-2 rounded-full bg-red-veon" />
                 <span className="font-semibold text-text-primary">{totalDone}</span> concluídas
               </span>
               <span className="flex items-center gap-1.5">
@@ -276,8 +276,8 @@ export function TrainingListPage() {
                         </div>
 
                         {alreadyInterested ? (
-                          <div className="mt-4 bg-green-900/20 border border-green-800/50 rounded-lg px-4 py-3 text-center">
-                            <p className="text-xs text-green-400 flex items-center justify-center gap-2">
+                          <div className="mt-4 bg-red-veon/10 border border-red-veon/30 rounded-lg px-4 py-3 text-center">
+                            <p className="text-xs text-red-veon flex items-center justify-center gap-2">
                               <Check className="w-4 h-4" /> Interesse registrado! Em breve entraremos em contato
                             </p>
                           </div>

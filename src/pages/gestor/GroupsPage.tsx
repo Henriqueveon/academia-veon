@@ -247,8 +247,8 @@ export function GroupsPage() {
 
                     {/* Created confirmation */}
                     {createdInfo && isCreating && (
-                      <div className="bg-green-900/20 border border-green-800 rounded-lg p-4 mb-4">
-                        <p className="text-green-400 text-sm font-semibold mb-2">Tripulante criado e adicionado à turma!</p>
+                      <div className="bg-red-veon/10 border border-red-veon/30 rounded-lg p-4 mb-4">
+                        <p className="text-red-veon text-sm font-semibold mb-2">Tripulante criado e adicionado à turma!</p>
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-text-muted w-12">Email:</span>

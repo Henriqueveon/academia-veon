@@ -225,7 +225,7 @@ export function TrainingsPage() {
                   <div className="flex items-center gap-4 mt-3 text-xs text-text-muted">
                     <span>{modCount} módulo(s)</span>
                     <span>{lessonCount} aula(s)</span>
-                    <span className={`flex items-center gap-1 ${t.visibility === 'vitrine' ? 'text-yellow-400' : ''}`}>
+                    <span className={`flex items-center gap-1 ${t.visibility === 'vitrine' ? 'text-red-veon' : ''}`}>
                       {t.visibility === 'vitrine' ? <><Eye className="w-3 h-3" /> Vitrine</> : <><EyeOff className="w-3 h-3" /> Oculto</>}
                     </span>
                   </div>

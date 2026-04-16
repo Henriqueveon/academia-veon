@@ -95,7 +95,7 @@ export function FreeProgramsPage() {
 
               <div className="flex items-center gap-4 mt-4 text-xs text-text-muted">
                 <span>{lessonCount(p.id)} aula(s)</span>
-                <span className={`flex items-center gap-1 ${p.published ? 'text-green-400' : 'text-yellow-400'}`}>
+                <span className={`flex items-center gap-1 ${p.published ? 'text-red-veon' : 'text-text-muted'}`}>
                   {p.published ? <><Eye className="w-3 h-3" /> Publicado</> : <><EyeOff className="w-3 h-3" /> Rascunho</>}
                 </span>
                 {p.visible_to_students === false && (

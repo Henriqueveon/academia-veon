@@ -286,8 +286,8 @@ export function CrewPage() {
 
       {/* Created confirmation */}
       {createdInfo && (
-        <div className="bg-green-900/20 border border-green-800 rounded-xl p-6 mb-6">
-          <h3 className="text-green-400 font-semibold mb-3">Tripulante criado com sucesso!</h3>
+        <div className="bg-red-veon/10 border border-red-veon/30 rounded-xl p-6 mb-6">
+          <h3 className="text-red-veon font-semibold mb-3">Tripulante criado com sucesso!</h3>
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <span className="text-sm text-text-muted w-16">Email:</span>
@@ -583,7 +583,7 @@ export function CrewPage() {
                             {isGroup && !isDirect && <span className="text-xs text-text-muted ml-2">(via turma)</span>}
                           </div>
                           {(isDirect || isGroup) && (
-                            <span className={`text-xs px-2 py-0.5 rounded ${isDirect ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-navy-800 text-text-muted'}`}>
+                            <span className={`text-xs px-2 py-0.5 rounded ${isDirect ? 'bg-red-veon/20 text-red-veon border border-red-veon/30' : 'bg-navy-800 text-text-muted'}`}>
                               {isDirect ? 'Liberado' : 'Via turma'}
                             </span>
                           )}
