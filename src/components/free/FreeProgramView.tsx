@@ -101,11 +101,11 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 md:px-8 pt-10 md:pt-14 pb-10">
         <h1 className="text-2xl md:text-4xl font-bold text-center text-white leading-tight">
-          {program.title}
+          {renderHighlighted(program.title)}
         </h1>
         {program.subtitle && (
           <p className="text-center text-[#B8C0D0] mt-3 md:text-lg max-w-3xl mx-auto">
-            {program.subtitle}
+            {renderHighlighted(program.subtitle)}
           </p>
         )}
 

@@ -201,6 +201,11 @@ export function FreeProgramEditPage() {
           <Field label="Subtítulo" full>
             <input className={inputCls} value={form.subtitle} onChange={e => upd('subtitle')(e.target.value)} />
           </Field>
+          <div className="col-span-full -mt-1">
+            <p className="text-xs text-text-muted bg-bg-card border border-navy-800 rounded-lg px-3 py-2">
+              💡 Para grifar palavras em vermelho no Título ou Subtítulo, envolva entre <code className="text-red-veon font-semibold">**asteriscos duplos**</code>. Exemplo: <code>Transforme sua empresa em uma **máquina de vendas**</code>
+            </p>
+          </div>
           <Field label="Badge de episódios">
             <input className={inputCls} value={form.episodes_badge} onChange={e => upd('episodes_badge')(e.target.value)} />
           </Field>
