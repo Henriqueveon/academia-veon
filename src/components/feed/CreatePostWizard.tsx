@@ -7,7 +7,8 @@ import { compressImage } from '../../lib/imageCompression'
 import { useQueryClient } from '@tanstack/react-query'
 import { startPostUpload, type UploadTarget, CHUNK_THRESHOLD } from '../../lib/postUploadManager'
 import { useUploadStore } from '../../stores/uploadStore'
-import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause, Link as LinkIcon } from 'lucide-react'
+import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause, Link as LinkIcon, Loader2 } from 'lucide-react'
+import { transcodeWebmToMp4 } from '../../lib/videoTranscode'
 
 const BUNNY_CDN_HOSTNAME = import.meta.env.VITE_BUNNY_CDN_HOSTNAME || 'vz-6d04ab5b-6ae.b-cdn.net'
 
@@ -62,6 +63,7 @@ async function waitForBunnyEncoding(videoId: string, maxMs = 300_000): Promise<v
       const res = await fetch(`/api/bunny/video-status?videoId=${videoId}`)
       if (res.ok) {
         const data = await res.json()
+        if (data.failed) throw new Error('Falha na transcodagem do vídeo. Tente enviar um arquivo MP4.')
         if (data.ready) return
       }
     } catch { /* keep polling */ }
@@ -606,10 +608,13 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
   const [cameraOn, setCameraOn] = useState(false)
   const [recording, setRecording] = useState(false)
   const [recordTime, setRecordTime] = useState(0)
+  const [converting, setConverting] = useState(false)
+  const [convertProgress, setConvertProgress] = useState(0)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<number | null>(null)
+  const recordTimeRef = useRef(0)
 
   // Attach stream to video element when camera turns on
   useEffect(() => {
@@ -648,30 +653,49 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
     mediaRecorderRef.current = recorder
     chunksRef.current = []
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: mimeType || 'video/webm' })
-      const url = URL.createObjectURL(blob)
-      onChange({ file: blob, previewUrl: url, duration: recordTime })
+    recorder.onstop = async () => {
+      const rawBlob = new Blob(chunksRef.current, { type: mimeType || 'video/webm' })
+      const duration = recordTimeRef.current
+
       streamRef.current?.getTracks().forEach(t => t.stop())
       streamRef.current = null
+      setCameraOn(false)
+      if (videoRef.current) videoRef.current.srcObject = null
+
+      let finalBlob = rawBlob
+      if (rawBlob.type.includes('webm')) {
+        setConverting(true)
+        setConvertProgress(0)
+        try {
+          finalBlob = await transcodeWebmToMp4(rawBlob, setConvertProgress)
+        } catch (err) {
+          console.error('Transcoding failed, uploading original:', err)
+        } finally {
+          setConverting(false)
+        }
+      }
+
+      const url = URL.createObjectURL(finalBlob)
+      onChange({ file: finalBlob, previewUrl: url, duration })
       if (videoRef.current) {
-        videoRef.current.srcObject = null
         videoRef.current.src = url
         videoRef.current.muted = false
         videoRef.current.style.transform = ''
       }
-      setCameraOn(false)
     }
     recorder.start()
     setRecording(true)
     setRecordTime(0)
+    recordTimeRef.current = 0
     timerRef.current = window.setInterval(() => {
       setRecordTime(t => {
-        if (t + 1 >= MAX_VIDEO_SECONDS) {
+        const next = t + 1
+        recordTimeRef.current = next
+        if (next >= MAX_VIDEO_SECONDS) {
           stopRecording()
           return MAX_VIDEO_SECONDS
         }
-        return t + 1
+        return next
       })
     }, 1000)
   }
@@ -721,6 +745,22 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
             <Video className="w-12 h-12 mx-auto mb-2" />
             <p className="text-sm">Grave ou envie um vídeo</p>
             <p className="text-xs">Máx. 2min30</p>
+          </div>
+        )}
+
+        {/* Converting overlay */}
+        {converting && (
+          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
+            <Loader2 className="w-8 h-8 text-white animate-spin mb-3" />
+            <p className="text-white text-sm font-medium">Convertendo vídeo...</p>
+            {convertProgress > 0 && (
+              <div className="mt-3 w-32">
+                <div className="w-full bg-white/20 rounded-full h-1.5">
+                  <div className="bg-white h-1.5 rounded-full transition-all" style={{ width: `${convertProgress}%` }} />
+                </div>
+                <p className="text-white/60 text-xs mt-1 text-center">{convertProgress}%</p>
+              </div>
+            )}
           </div>
         )}
 

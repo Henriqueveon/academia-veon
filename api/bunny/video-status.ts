@@ -18,5 +18,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const data = await bunnyRes.json()
   // Bunny status: 0=Created, 1=Uploaded, 2=Processing, 3=Transcoding, 4=Finished, 5=Error, 6=UploadFailed
-  return res.status(200).json({ status: data.status, ready: data.status >= 4 })
+  return res.status(200).json({
+    status: data.status,
+    ready: data.status === 4,
+    failed: data.status === 5 || data.status === 6,
+  })
 }
