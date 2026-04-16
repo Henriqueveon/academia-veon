@@ -148,47 +148,48 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock, o
           {/* Player */}
           <div className="relative">
             <div className="bg-[#0F1F42]/80 backdrop-blur-sm border border-[#E63946]/30 rounded-xl overflow-hidden">
-              {active?.bunny_video_id ? (
-                <div className="relative">
-                  {(!playing && active.thumbnail_url) ? (
-                    <div
-                      className="aspect-video cursor-pointer relative group"
-                      onClick={() => unlocked ? setPlaying(true) : onRequestUnlock()}
-                    >
-                      <img
-                        src={active.thumbnail_url}
-                        alt={active.title}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
-                        {unlocked ? (
-                          <PlayCircle className="w-16 h-16 text-white drop-shadow-lg" />
-                        ) : (
-                          <div className="flex flex-col items-center">
-                            <Lock className="w-14 h-14 text-[#E63946] mb-3" />
-                            <p className="text-white font-semibold text-lg">Conteúdo bloqueado</p>
-                            <p className="text-[#B8C0D0] text-sm mt-1">Clique para desbloquear suas aulas</p>
-                          </div>
-                        )}
+              {(!playing && active?.thumbnail_url) ? (
+                <div
+                  className="aspect-video cursor-pointer relative group"
+                  onClick={() => {
+                    if (!unlocked) { onRequestUnlock(); return }
+                    if (active?.bunny_video_id) setPlaying(true)
+                  }}
+                >
+                  <img
+                    src={active.thumbnail_url}
+                    alt={active?.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
+                    {unlocked ? (
+                      active?.bunny_video_id ? (
+                        <PlayCircle className="w-16 h-16 text-white drop-shadow-lg" />
+                      ) : null
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <Lock className="w-14 h-14 text-[#E63946] mb-3" />
+                        <p className="text-white font-semibold text-lg">Conteúdo bloqueado</p>
+                        <p className="text-[#B8C0D0] text-sm mt-1">Clique para desbloquear suas aulas</p>
                       </div>
+                    )}
+                  </div>
+                </div>
+              ) : active?.bunny_video_id ? (
+                <div className="relative">
+                  <VideoPlayer
+                    videoId={active.bunny_video_id}
+                    libraryId={active.bunny_library_id || undefined}
+                  />
+                  {!unlocked && (
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer"
+                      onClick={onRequestUnlock}
+                    >
+                      <Lock className="w-14 h-14 text-[#E63946] mb-3" />
+                      <p className="text-white font-semibold text-lg">Conteúdo bloqueado</p>
+                      <p className="text-[#B8C0D0] text-sm mt-1">Clique para desbloquear suas aulas</p>
                     </div>
-                  ) : (
-                    <>
-                      <VideoPlayer
-                        videoId={active.bunny_video_id}
-                        libraryId={active.bunny_library_id || undefined}
-                      />
-                      {!unlocked && (
-                        <div
-                          className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer"
-                          onClick={onRequestUnlock}
-                        >
-                          <Lock className="w-14 h-14 text-[#E63946] mb-3" />
-                          <p className="text-white font-semibold text-lg">Conteúdo bloqueado</p>
-                          <p className="text-[#B8C0D0] text-sm mt-1">Clique para desbloquear suas aulas</p>
-                        </div>
-                      )}
-                    </>
                   )}
                 </div>
               ) : (
