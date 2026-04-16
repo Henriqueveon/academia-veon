@@ -141,45 +141,31 @@ export function TrainingListPage() {
 
   return (
     <div>
-      {/* Header: logo + marquee + saudação */}
-      <div className="mb-8">
-        <div className="flex flex-col items-center gap-2 mb-4">
-          <img src="/veon-logo.png" alt="Instituto Veon" className="h-14 md:h-16 object-contain" />
-          <div className="w-full max-w-md overflow-hidden">
-            <div className="flex w-max animate-marquee-x">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <span
-                  key={i}
-                  aria-hidden={i > 0}
-                  className="px-5 text-[11px] font-semibold tracking-[0.2em] text-text-muted uppercase shrink-0"
-                >
-                  A Escola do Varejo
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {profile && (
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <p className="text-base text-text-secondary">
-              Olá, <span className="font-semibold text-text-primary">{profile.name}</span>
-            </p>
-            {totalLessons > 0 && (
-              <div className="flex items-center gap-4 text-xs text-text-muted">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="font-semibold text-text-primary">{totalDone}</span> concluídas
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-navy-600" />
-                  <span className="font-semibold text-text-primary">{totalPending}</span> pendentes
-                </span>
-              </div>
-            )}
-          </div>
-        )}
+      {/* Header: logo esquerda + "A Escola do Varejo" direita */}
+      <div className="flex items-center justify-between py-4 mb-6 border-b border-white/10">
+        <img src="/veon-logo.png" alt="Instituto Veon" className="h-10 md:h-12 object-contain" />
+        <span className="text-sm md:text-base font-bold italic text-white/90 tracking-wide">A Escola do Varejo</span>
       </div>
+
+      {profile && (
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+          <p className="text-base text-text-secondary">
+            Olá, <span className="font-semibold text-text-primary">{profile.name}</span>
+          </p>
+          {totalLessons > 0 && (
+            <div className="flex items-center gap-4 text-xs text-text-muted">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="font-semibold text-text-primary">{totalDone}</span> concluídas
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-navy-600" />
+                <span className="font-semibold text-text-primary">{totalPending}</span> pendentes
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <h1 className="text-xl font-bold mb-6">Treinamentos</h1>
 
