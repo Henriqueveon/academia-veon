@@ -16,12 +16,14 @@ interface FormState {
   visible_to_students: boolean
   cta_button_text: string
   cta_button_url: string
+  cta_requires_form: boolean
   webhook_url: string
   meta_pixel_id: string
   objective_title: string
   objective_card1_text: string
   objective_card2_text: string
   objective_card3_text: string
+  partners_section_title: string
   partner1_name: string
   partner1_role: string
   partner1_bio: string
@@ -34,8 +36,9 @@ interface FormState {
 
 const EMPTY: FormState = {
   slug: '', title: '', subtitle: '', episodes_badge: '3 episódios', thumbnail_url: '', published: false, visible_to_students: true,
-  cta_button_text: 'Quero saber mais', cta_button_url: '', webhook_url: '', meta_pixel_id: '',
+  cta_button_text: 'Quero saber mais', cta_button_url: '', cta_requires_form: false, webhook_url: '', meta_pixel_id: '',
   objective_title: '', objective_card1_text: '', objective_card2_text: '', objective_card3_text: '',
+  partners_section_title: '',
   partner1_name: '', partner1_role: '', partner1_bio: '', partner1_photo_url: '',
   partner2_name: '', partner2_role: '', partner2_bio: '', partner2_photo_url: '',
 }
@@ -85,12 +88,14 @@ export function FreeProgramEditPage() {
         visible_to_students: program.visible_to_students !== false,
         cta_button_text: program.cta_button_text || '',
         cta_button_url: program.cta_button_url || '',
+        cta_requires_form: !!program.cta_requires_form,
         webhook_url: program.webhook_url || '',
         meta_pixel_id: program.meta_pixel_id || '',
         objective_title: program.objective_title || '',
         objective_card1_text: program.objective_card1_text || '',
         objective_card2_text: program.objective_card2_text || '',
         objective_card3_text: program.objective_card3_text || '',
+        partners_section_title: program.partners_section_title || '',
         partner1_name: program.partner1_name || '',
         partner1_role: program.partner1_role || '',
         partner1_bio: program.partner1_bio || '',
@@ -252,6 +257,21 @@ export function FreeProgramEditPage() {
           <Field label="URL do botão CTA">
             <input className={inputCls} value={form.cta_button_url} onChange={e => upd('cta_button_url')(e.target.value)} placeholder="https://..." />
           </Field>
+          <Field label="Exigir formulário no CTA?">
+            <label className="flex items-center gap-2 cursor-pointer mt-1">
+              <input
+                type="checkbox"
+                checked={form.cta_requires_form}
+                onChange={e => upd('cta_requires_form')(e.target.checked)}
+                className="w-4 h-4 accent-red-veon"
+              />
+              <span className="text-sm text-text-secondary">
+                {form.cta_requires_form
+                  ? 'Sim — abre formulário antes de redirecionar'
+                  : 'Não — redireciona direto para o link'}
+              </span>
+            </label>
+          </Field>
           <Field label="Webhook URL do seu CRM para este programa" full>
             <input className={inputCls} value={form.webhook_url} onChange={e => upd('webhook_url')(e.target.value)} placeholder="https://seu-crm.com/webhook/..." />
             <p className="text-xs text-text-muted mt-1">Os leads capturados serão enviados via POST para esta URL.</p>
@@ -294,7 +314,15 @@ export function FreeProgramEditPage() {
 
       {/* Sócios */}
       <Section title="Sócios / Fundadores">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Field label="Título da seção (aparece na página pública)" hint='Deixe em branco para usar o padrão "Conheça os fundadores"'>
+          <input
+            className={inputCls}
+            value={form.partners_section_title}
+            onChange={e => upd('partners_section_title')(e.target.value)}
+            placeholder="Conheça os fundadores"
+          />
+        </Field>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
           {[1, 2].map(n => (
             <div key={n} className="space-y-3 bg-bg-card border border-navy-800 rounded-xl p-4">
               <h3 className="font-semibold text-text-primary">Sócio {n}</h3>
@@ -369,11 +397,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
+function Field({ label, children, full, hint }: { label: string; children: React.ReactNode; full?: boolean; hint?: string }) {
   return (
     <div className={full ? 'md:col-span-2' : ''}>
       <label className="block text-sm text-text-secondary mb-1">{label}</label>
       {children}
+      {hint && <p className="text-xs text-text-muted mt-1">{hint}</p>}
     </div>
   )
 }

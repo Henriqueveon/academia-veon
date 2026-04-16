@@ -27,6 +27,7 @@ export interface FreeProgram {
   objective_card1_text?: string | null
   objective_card2_text?: string | null
   objective_card3_text?: string | null
+  partners_section_title?: string | null
   partner1_name?: string | null
   partner1_role?: string | null
   partner1_bio?: string | null
@@ -37,6 +38,7 @@ export interface FreeProgram {
   partner2_photo_url?: string | null
   cta_button_text?: string | null
   cta_button_url?: string | null
+  cta_requires_form?: boolean
   webhook_url?: string | null
   meta_pixel_id?: string | null
   published?: boolean
@@ -56,12 +58,41 @@ interface Props {
   lessons: FreeLesson[]
   unlocked: boolean
   onRequestUnlock: () => void
+  onCtaClick?: () => void
 }
 
-export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }: Props) {
+export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock, onCtaClick }: Props) {
   const [activeIdx, setActiveIdx] = useState(0)
   const active = lessons[activeIdx]
   const total = lessons.length
+
+  function renderCtaButton() {
+    if (!program.cta_button_text || !program.cta_button_url) return null
+    if (program.cta_requires_form && onCtaClick) {
+      return (
+        <div className="flex justify-center mt-10">
+          <button
+            onClick={onCtaClick}
+            className="bg-[#E63946] hover:bg-[#c62f3b] text-white font-semibold px-8 py-3.5 rounded-lg transition-colors"
+          >
+            {program.cta_button_text}
+          </button>
+        </div>
+      )
+    }
+    return (
+      <div className="flex justify-center mt-10">
+        <a
+          href={program.cta_button_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-[#E63946] hover:bg-[#c62f3b] text-white font-semibold px-8 py-3.5 rounded-lg transition-colors"
+        >
+          {program.cta_button_text}
+        </a>
+      </div>
+    )
+  }
 
   const handleSelect = (idx: number) => {
     if (!unlocked) {
@@ -230,18 +261,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
               )
             })}
           </div>
-          {program.cta_button_text && program.cta_button_url && (
-            <div className="flex justify-center mt-10">
-              <a
-                href={program.cta_button_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-[#E63946] hover:bg-[#c62f3b] text-white font-semibold px-8 py-3.5 rounded-lg transition-colors"
-              >
-                {program.cta_button_text}
-              </a>
-            </div>
-          )}
+          {renderCtaButton()}
         </section>
       )}
 
@@ -249,7 +269,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
       {(program.partner1_name || program.partner2_name) && (
         <section className="max-w-5xl mx-auto px-4 md:px-8 py-12">
           <h2 className="text-2xl md:text-3xl font-bold text-center text-white mb-10">
-            Conheça os fundadores
+            {program.partners_section_title?.trim() || 'Conheça os fundadores'}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[
@@ -281,18 +301,7 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock }:
               ) : null,
             )}
           </div>
-          {program.cta_button_text && program.cta_button_url && (
-            <div className="flex justify-center mt-10">
-              <a
-                href={program.cta_button_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-[#E63946] hover:bg-[#c62f3b] text-white font-semibold px-8 py-3.5 rounded-lg transition-colors"
-              >
-                {program.cta_button_text}
-              </a>
-            </div>
-          )}
+          {renderCtaButton()}
         </section>
       )}
 

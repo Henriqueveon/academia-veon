@@ -10,6 +10,7 @@ export function FreeProgramPage() {
   const { slug } = useParams<{ slug: string }>()
   const [unlocked, setUnlocked] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const [ctaModalOpen, setCtaModalOpen] = useState(false)
 
   useEffect(() => {
     if (!slug) return
@@ -70,11 +71,19 @@ export function FreeProgramPage() {
 
   const handleUnlock = () => {
     if (!slug) return
-    // Dispara evento Lead no Meta Pixel com o slug para identificar qual LP converteu
     trackPixelEvent('Lead', { content_name: slug, content_category: 'free_program' })
     localStorage.setItem('unlocked_' + slug, 'true')
     setUnlocked(true)
     setModalOpen(false)
+  }
+
+  const handleCtaFormSubmit = () => {
+    if (!slug) return
+    trackPixelEvent('Lead', { content_name: slug, content_category: 'free_program_cta' })
+    setCtaModalOpen(false)
+    if (program?.cta_button_url) {
+      window.open(program.cta_button_url, '_blank')
+    }
   }
 
   return (
@@ -84,11 +93,20 @@ export function FreeProgramPage() {
         lessons={lessons}
         unlocked={unlocked}
         onRequestUnlock={() => setModalOpen(true)}
+        onCtaClick={() => setCtaModalOpen(true)}
       />
       <LeadFormModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSubmit={handleUnlock}
+        webhookUrl={program.webhook_url}
+        programSlug={program.slug}
+        programTitle={program.title}
+      />
+      <LeadFormModal
+        open={ctaModalOpen}
+        onClose={() => setCtaModalOpen(false)}
+        onSubmit={handleCtaFormSubmit}
         webhookUrl={program.webhook_url}
         programSlug={program.slug}
         programTitle={program.title}

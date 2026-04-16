@@ -132,6 +132,7 @@ export interface Database {
           objective_card1_text: string | null
           objective_card2_text: string | null
           objective_card3_text: string | null
+          partners_section_title: string | null
           partner1_name: string | null
           partner1_role: string | null
           partner1_bio: string | null
@@ -142,6 +143,7 @@ export interface Database {
           partner2_photo_url: string | null
           cta_button_text: string | null
           cta_button_url: string | null
+          cta_requires_form: boolean
           webhook_url: string | null
           published: boolean
           created_at: string
@@ -157,6 +159,7 @@ export interface Database {
           objective_card1_text?: string | null
           objective_card2_text?: string | null
           objective_card3_text?: string | null
+          partners_section_title?: string | null
           partner1_name?: string | null
           partner1_role?: string | null
           partner1_bio?: string | null
@@ -167,6 +170,7 @@ export interface Database {
           partner2_photo_url?: string | null
           cta_button_text?: string | null
           cta_button_url?: string | null
+          cta_requires_form?: boolean
           webhook_url?: string | null
           published?: boolean
           created_at?: string
