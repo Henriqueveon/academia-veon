@@ -7,6 +7,10 @@ declare global {
   }
 }
 
+// Controle global — sobrevive a remounts de componentes na SPA
+const _pixelPageViewed = new Set<string>()
+let _pixelScriptLoaded = false
+
 // Injeta o Meta Pixel e dispara PageView. Retorna funções para custom events.
 // pixelId: só o ID numérico (ex: "1234567890"). Null/undefined = desativado.
 export function useMetaPixel(pixelId?: string | null) {
@@ -14,9 +18,6 @@ export function useMetaPixel(pixelId?: string | null) {
 
   useEffect(() => {
     if (!pixelId) return
-    if (initializedRef.current === pixelId) return
-
-    // Se já existe um pixel diferente, não reinstala (evita conflitos entre navegações SPA)
     if (typeof window === 'undefined') return
 
     const id = pixelId.trim()
@@ -25,8 +26,14 @@ export function useMetaPixel(pixelId?: string | null) {
       return
     }
 
+    if (_pixelPageViewed.has(id)) {
+      initializedRef.current = id
+      return
+    }
+
     // Bootstrap padrão do Meta Pixel (apenas uma vez por página)
-    if (!window.fbq) {
+    if (!_pixelScriptLoaded) {
+      _pixelScriptLoaded = true
       const n: any = (window.fbq = function (...args: any[]) {
         n.callMethod ? n.callMethod.apply(n, args) : n.queue.push(args)
       })
@@ -40,11 +47,11 @@ export function useMetaPixel(pixelId?: string | null) {
       script.async = true
       script.src = 'https://connect.facebook.net/en_US/fbevents.js'
       document.head.appendChild(script)
-
     }
 
     window.fbq?.('init', id)
     window.fbq?.('track', 'PageView')
+    _pixelPageViewed.add(id)
     initializedRef.current = id
   }, [pixelId])
 }
