@@ -10,7 +10,7 @@ import { FriendsModal } from '../../components/feed/FriendsModal'
 import { saveCache, loadCache } from '../../lib/feedCache'
 import { useUploadStore } from '../../stores/uploadStore'
 import { useFeedReadyStore } from '../../stores/feedReadyStore'
-import { PostCardSkeleton } from '../../components/feed/PostCardSkeleton'
+import { FeedLoadingScreen } from '../../components/feed/FeedLoadingScreen'
 
 const PAGE_SIZE = 5
 const CACHE_KEY = 'feed-first-page'
@@ -114,6 +114,8 @@ export function FeedPage() {
   // Load cached first page synchronously for instant display
   const cachedFirstPage = loadCache<FeedPage>(CACHE_KEY)
 
+  const [feedReady, setFeedReady] = useState(!!cachedFirstPage)
+
   const {
     data,
     isLoading,
@@ -206,15 +208,13 @@ export function FeedPage() {
     }
   }, [user, queryClient])
 
-  // Cold-start scroll lock: only when there's NO cached first page.
-  // Releases as soon as INITIAL_BUDGET posts mark themselves ready, or after the failsafe.
+  // Cold-start loading screen: only when there's NO cached first page.
+  // Fades out as soon as INITIAL_BUDGET posts mark their media ready, or after the failsafe.
+  // The feed renders behind the loading screen so media loads in background.
   useEffect(() => {
     if (cachedFirstPage) return
     useFeedReadyStore.getState().resetInitial(INITIAL_BUDGET)
-    document.body.style.overflow = 'hidden'
-    const release = () => {
-      document.body.style.overflow = ''
-    }
+    const release = () => setFeedReady(true)
     const failsafe = window.setTimeout(release, SCROLL_LOCK_TIMEOUT_MS)
     const unsub = useFeedReadyStore.subscribe((s) => {
       if (s.initialReadyCount >= INITIAL_BUDGET) release()
@@ -222,7 +222,6 @@ export function FeedPage() {
     return () => {
       window.clearTimeout(failsafe)
       unsub()
-      release()
     }
     // intentionally empty deps: only runs on mount; cachedFirstPage is captured
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -244,6 +243,21 @@ export function FeedPage() {
       document.head.removeChild(link)
     }
   }, [data])
+
+  // Preload next 4 posts' thumbnails/images as soon as first page arrives (8.3)
+  useEffect(() => {
+    const firstPagePosts = data?.pages?.[0]?.posts
+    if (!firstPagePosts) return
+    firstPagePosts.slice(1, 5).forEach((post: any) => {
+      const page = post.pages?.[0]
+      if (!page) return
+      const src = page.thumbnail_url || page.image_url
+      if (src && page.type !== 'audio') {
+        new Image().src = src
+      }
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.pages?.[0]])
 
   // Zombie sweep: if one of the user's own posts is stuck in 'uploading' with no
   // active upload entry in the store AND was started >10min ago, mark it failed.
@@ -380,8 +394,10 @@ export function FeedPage() {
     await fetchNewerAndMerge()
   }
 
-  // Flatten posts from all pages
-  const posts = data?.pages.flatMap((p) => p.posts) || []
+  // Flatten posts from all pages, tracking which page each came from
+  const postsWithPageIdx = data?.pages.flatMap((p, pageIdx) =>
+    p.posts.map((post: any) => ({ post, pageIdx }))
+  ) || []
 
   return (
     <div
@@ -406,7 +422,7 @@ export function FeedPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold">Feed</h1>
-          {isFetching && !refreshing && !isFetchingNextPage && posts.length > 0 && (
+          {isFetching && !refreshing && !isFetchingNextPage && postsWithPageIdx.length > 0 && (
             <div className="w-3 h-3 border-2 border-red-veon border-t-transparent rounded-full animate-spin" />
           )}
         </div>
@@ -450,17 +466,11 @@ export function FeedPage() {
 
       {showFriends && <FriendsModal onClose={() => setShowFriends(false)} />}
 
-      {/* Skeleton (initial load only when no cache) */}
-      {isLoading && posts.length === 0 && (
-        <div className="space-y-6">
-          {[1, 2, 3].map((i) => (
-            <PostCardSkeleton key={i} />
-          ))}
-        </div>
-      )}
+      {/* Feed Loading Screen — covers cold-start until initial media is ready (8.0) */}
+      <FeedLoadingScreen visible={!feedReady} />
 
       {/* Empty state */}
-      {!isLoading && posts.length === 0 && !showCreate && (
+      {!isLoading && postsWithPageIdx.length === 0 && !showCreate && (
         <div className="text-center py-20 text-text-muted">
           <p className="text-lg">Nenhum post ainda.</p>
           <p className="text-sm mt-1">Seja o primeiro a postar no feed!</p>
@@ -469,12 +479,13 @@ export function FeedPage() {
 
       {/* Posts */}
       <div className="space-y-6">
-        {posts.map((post: any, idx: number) => (
+        {postsWithPageIdx.map(({ post, pageIdx }, idx) => (
           <PostCard
             key={post.id}
             post={post}
             priority={idx === 0}
             isInitial={idx < INITIAL_BUDGET}
+            loadEager={pageIdx > 0}
           />
         ))}
       </div>
@@ -494,7 +505,7 @@ export function FeedPage() {
       )}
 
       {/* End of feed */}
-      {!hasNextPage && posts.length > 0 && (
+      {!hasNextPage && postsWithPageIdx.length > 0 && (
         <p className="text-center text-text-muted text-sm py-8">Você chegou ao fim do feed</p>
       )}
     </div>

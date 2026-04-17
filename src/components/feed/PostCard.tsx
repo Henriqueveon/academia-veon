@@ -10,6 +10,7 @@ import { LikesModal } from './LikesModal'
 import { UploadingMedia } from './UploadingMedia'
 import { MediaFallback } from './MediaFallback'
 import { usePostReady } from '../../hooks/usePostReady'
+import { useVideoMutePref } from '../../hooks/useVideoMutePref'
 import { Spinner } from '../ui/Spinner'
 import { MediaWithSpinner } from '../ui/MediaWithSpinner'
 
@@ -17,11 +18,12 @@ interface Props {
   post: any
   priority?: boolean   // first visible post → fetchpriority="high" + isInitial=true
   isInitial?: boolean  // counted toward feedReadyStore.initialReadyCount (cold-start unlock)
+  loadEager?: boolean  // true for posts from page 2+ — skips lazy loading since they're already near viewport
   detailMode?: boolean // true when rendered inside PostDetailPage — expands comments, hides nav link
   onPostUpdate?: (updater: (p: any) => any) => void // lets PostDetailPage sync its local state
 }
 
-function PostCardImpl({ post, priority = false, isInitial = false, detailMode = false, onPostUpdate }: Props) {
+function PostCardImpl({ post, priority = false, isInitial = false, loadEager = false, detailMode = false, onPostUpdate }: Props) {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -36,6 +38,15 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
   const [blockReason, setBlockReason] = useState('')
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false })
+  const [showHeart, setShowHeart] = useState(false)
+  const [heartKey, setHeartKey] = useState(0)
+  const heartTimerRef = useRef<number | null>(null)
+  // Tracks which post_page IDs have their full-res image loaded (for LQIP cross-fade)
+  const [loadedImageIds, setLoadedImageIds] = useState<Set<string>>(new Set())
+  function markImageLoaded(pageId: string, onLoad?: () => void) {
+    setLoadedImageIds(s => new Set([...s, pageId]))
+    onLoad?.()
+  }
 
   const isOwn = post.user_id === user?.id
   const isGestor = profile?.role === 'gestor'
@@ -148,6 +159,15 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
     emblaApi.on('select', onSelect)
     return () => { emblaApi.off('select', onSelect) }
   }, [emblaApi])
+
+  // Double-tap like handler — triggers like mutation + heart animation (8.4)
+  function handleDoubleTap() {
+    if (!post.likedByMe) toggleLike.mutate()
+    if (heartTimerRef.current) clearTimeout(heartTimerRef.current)
+    setHeartKey(k => k + 1)
+    setShowHeart(true)
+    heartTimerRef.current = window.setTimeout(() => setShowHeart(false), 900)
+  }
 
   // Feed query key (must match FeedPage)
   const feedKey = ['feed-posts', user?.id]
@@ -538,18 +558,27 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
                           className={`absolute inset-0 transition-opacity duration-200 ${i === 0 ? (ready || skipGate ? 'opacity-100' : 'opacity-0') : 'opacity-100'}`}
                         >
                           {page.type === 'image' && page.image_url && (
-                            <img
-                              src={page.image_url}
-                              alt=""
-                              width={800}
-                              height={1000}
-                              loading={i === 0 && priority ? 'eager' : 'lazy'}
-                              decoding="async"
-                              fetchPriority={i === 0 && priority ? 'high' : 'low'}
-                              className="w-full h-full object-cover"
-                              onLoad={i === 0 ? onMediaLoad : undefined}
-                              onError={i === 0 ? onMediaError : undefined}
-                            />
+                            <div className="absolute inset-0">
+                              {page.thumbnail_url && (
+                                <img
+                                  src={page.thumbnail_url}
+                                  className="absolute inset-0 w-full h-full object-cover blur-sm scale-110"
+                                  aria-hidden
+                                />
+                              )}
+                              <img
+                                src={page.image_url}
+                                alt=""
+                                width={800}
+                                height={1000}
+                                loading={i === 0 && priority ? 'eager' : loadEager ? 'eager' : 'lazy'}
+                                decoding="async"
+                                fetchPriority={i === 0 && priority ? 'high' : 'auto'}
+                                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${loadedImageIds.has(page.id) ? 'opacity-100' : 'opacity-0'}`}
+                                onLoad={() => markImageLoaded(page.id, i === 0 ? onMediaLoad : undefined)}
+                                onError={i === 0 ? onMediaError : undefined}
+                              />
+                            </div>
                           )}
                           {page.type === 'video' && page.image_url && (
                             <FeedVideo
@@ -557,9 +586,10 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
                               key={page.id}
                               src={page.image_url}
                               poster={page.thumbnail_url || undefined}
+                              duration={page.duration_seconds}
                               onCanPlay={i === 0 ? onMediaLoad : undefined}
                               onError={i === 0 ? onMediaError : undefined}
-                              onNavigate={!detailMode ? () => navigate(`/post/${post.id}`) : undefined}
+                              onDoubleTap={handleDoubleTap}
                             />
                           )}
                           {page.type === 'audio' && page.image_url && (
@@ -571,6 +601,12 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
                   ))}
                 </div>
               </div>
+              {/* Heart animation overlay (8.4) */}
+              {showHeart && (
+                <div key={heartKey} className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
+                  <Heart className="w-24 h-24 fill-white text-white drop-shadow-2xl animate-heart-burst" />
+                </div>
+              )}
               {showSkeleton && !errored && (
                 <div className="absolute inset-0 bg-navy-800 animate-pulse z-5 flex items-center justify-center">
                   <Spinner size="md" />
@@ -588,18 +624,27 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
                     className={`absolute inset-0 transition-opacity duration-200 ${ready || skipGate ? 'opacity-100' : 'opacity-0'}`}
                   >
                     {currentPageData.type === 'image' && currentPageData.image_url && (
-                      <img
-                        src={currentPageData.image_url}
-                        alt=""
-                        width={800}
-                        height={1000}
-                        loading={priority ? 'eager' : 'lazy'}
-                        decoding="async"
-                        fetchPriority={priority ? 'high' : 'low'}
-                        className="w-full h-full object-cover"
-                        onLoad={onMediaLoad}
-                        onError={onMediaError}
-                      />
+                      <div className="absolute inset-0">
+                        {currentPageData.thumbnail_url && (
+                          <img
+                            src={currentPageData.thumbnail_url}
+                            className="absolute inset-0 w-full h-full object-cover blur-sm scale-110"
+                            aria-hidden
+                          />
+                        )}
+                        <img
+                          src={currentPageData.image_url}
+                          alt=""
+                          width={800}
+                          height={1000}
+                          loading={priority || loadEager ? 'eager' : 'lazy'}
+                          decoding="async"
+                          fetchPriority={priority ? 'high' : 'auto'}
+                          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${loadedImageIds.has(currentPageData.id) ? 'opacity-100' : 'opacity-0'}`}
+                          onLoad={() => markImageLoaded(currentPageData.id, onMediaLoad)}
+                          onError={onMediaError}
+                        />
+                      </div>
                     )}
                     {currentPageData.type === 'video' && currentPageData.image_url && (
                       <FeedVideo
@@ -607,14 +652,21 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
                         key={currentPageData.id}
                         src={currentPageData.image_url}
                         poster={currentPageData.thumbnail_url || undefined}
+                        duration={currentPageData.duration_seconds}
                         onCanPlay={onMediaLoad}
                         onError={onMediaError}
-                        onNavigate={!detailMode ? () => navigate(`/post/${post.id}`) : undefined}
+                        onDoubleTap={handleDoubleTap}
                       />
                     )}
                     {currentPageData.type === 'audio' && currentPageData.image_url && (
                       <AudioPlayer src={currentPageData.image_url} duration={currentPageData.duration_seconds} />
                     )}
+                  </div>
+                )}
+                {/* Heart animation overlay (8.4) */}
+                {showHeart && (
+                  <div key={heartKey} className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
+                    <Heart className="w-24 h-24 fill-white text-white drop-shadow-2xl animate-heart-burst" />
                   </div>
                 )}
                 {/* Skeleton overlay until first media loads (fades out on ready) */}
@@ -881,43 +933,81 @@ export const PostCard = memo(PostCardImpl, (prev, next) => {
   )
 })
 
-const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; onCanPlay?: () => void; onError?: () => void; onNavigate?: () => void }>(({ src, poster, onCanPlay, onError, onNavigate }, ref) => {
+const SHORT_VIDEO_THRESHOLD_S = 60
+
+const FeedVideo = forwardRef<HTMLVideoElement, {
+  src: string
+  poster?: string
+  duration?: number
+  onCanPlay?: () => void
+  onError?: () => void
+  onDoubleTap?: () => void
+}>(({ src, poster, duration, onCanPlay, onError, onDoubleTap }, ref) => {
   const localRef = useRef<HTMLVideoElement>(null)
-  // Sync external ref
   useEffect(() => {
     if (!ref) return
     if (typeof ref === 'function') ref(localRef.current)
     else ref.current = localRef.current
   }, [ref])
 
-  const [muted, setMuted] = useState(true)
+  const { muted, toggle: toggleMute } = useVideoMutePref()
   const [progress, setProgress] = useState(0)
   const [holding, setHolding] = useState(false)
   const holdTimerRef = useRef<number | null>(null)
+  const tapTimerRef = useRef<number | null>(null)
+  const lastTapRef = useRef(0)
   const [videoReady, setVideoReady] = useState(false)
+  const [showMuteFeedback, setShowMuteFeedback] = useState(false)
+  const muteFeedbackTimerRef = useRef<number | null>(null)
+  const originalSrcRef = useRef(src)
 
-  // Eagerly buffer when card enters viewport (with preload="metadata", bytes are skipped on load).
+  const isShort = !duration || duration < SHORT_VIDEO_THRESHOLD_S
+
+  // For long videos: release buffer when out of viewport; re-acquire when back in view.
+  // For short videos: trigger eager load when near viewport.
   useEffect(() => {
     if (!localRef.current) return
     const v = localRef.current
+    originalSrcRef.current = src
+
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio > 0.3 && v.readyState < 2) v.load()
+        if (entry.isIntersecting) {
+          if (isShort && v.readyState < 2) v.load()
+          else if (!isShort && v.readyState < 1) v.load()
+          // Re-attach src if it was cleared
+          if (!v.src || !v.src.includes(src)) {
+            v.src = src
+            v.load()
+          }
+        } else if (!isShort && entry.intersectionRatio < 0.05) {
+          // Long video left viewport — free memory
+          v.pause()
+          v.src = ''
+          v.load()
+        }
       },
-      { threshold: [0, 0.3] },
+      // Short videos: preload 400px before entering viewport; long videos: only when visible
+      isShort
+        ? { threshold: [0, 0.3], rootMargin: '400px 0px' }
+        : { threshold: [0, 0.05, 0.3] },
     )
     observer.observe(v)
     return () => observer.disconnect()
-  }, [src])
+  }, [src, isShort])
+
+  function showMuteIcon() {
+    if (muteFeedbackTimerRef.current) clearTimeout(muteFeedbackTimerRef.current)
+    setShowMuteFeedback(true)
+    muteFeedbackTimerRef.current = window.setTimeout(() => setShowMuteFeedback(false), 800)
+  }
 
   function handlePointerDown(e: React.PointerEvent) {
     if (!localRef.current) return
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const xRatio = (e.clientX - rect.left) / rect.width
     const yRatio = (e.clientY - rect.top) / rect.height
-    // Right-top quadrant: x > 0.5, y < 0.5
     if (xRatio > 0.5 && yRatio < 0.5) {
-      // Start hold timer (300ms to confirm hold)
       holdTimerRef.current = window.setTimeout(() => {
         if (localRef.current) {
           localRef.current.playbackRate = 1.25
@@ -932,19 +1022,41 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; o
       clearTimeout(holdTimerRef.current)
       holdTimerRef.current = null
     }
-    if (localRef.current) {
-      localRef.current.playbackRate = 1
-    }
+    if (localRef.current) localRef.current.playbackRate = 1
     setHolding(false)
   }
 
-  function handleVideoClick() {
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation()
     if (holding) return
-    if (onNavigate) { onNavigate(); return }
-    if (!localRef.current) return
-    if (localRef.current.paused) localRef.current.play()
-    else localRef.current.pause()
+
+    const now = Date.now()
+    const delta = now - lastTapRef.current
+    lastTapRef.current = now
+
+    if (delta < 300 && tapTimerRef.current) {
+      // Double tap — cancel pending mute toggle, trigger like
+      clearTimeout(tapTimerRef.current)
+      tapTimerRef.current = null
+      onDoubleTap?.()
+      return
+    }
+
+    // Schedule mute toggle (cancellable if second tap arrives)
+    tapTimerRef.current = window.setTimeout(() => {
+      tapTimerRef.current = null
+      toggleMute()
+      showMuteIcon()
+    }, 300)
   }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current)
+      if (muteFeedbackTimerRef.current) clearTimeout(muteFeedbackTimerRef.current)
+    }
+  }, [])
 
   return (
     <div
@@ -953,6 +1065,7 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; o
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onClick={handleClick}
     >
       <video
         ref={localRef}
@@ -960,17 +1073,23 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; o
         className="w-full h-full object-cover bg-navy-900"
         playsInline
         muted={muted}
-        loop
-        preload="metadata"
-        onClick={handleVideoClick}
-        onCanPlay={() => { setVideoReady(true); onCanPlay?.() }}
-        onLoadedMetadata={() => { onCanPlay?.() }}
+        preload={isShort ? 'auto' : 'metadata'}
+        onCanPlay={() => {
+          if (!isShort) { setVideoReady(true); onCanPlay?.() }
+        }}
+        onCanPlayThrough={() => {
+          if (isShort) { setVideoReady(true); onCanPlay?.() }
+        }}
+        onLoadedMetadata={() => {
+          if (!isShort) onCanPlay?.()
+        }}
         onError={onError}
         onTimeUpdate={(e) => {
           const v = e.currentTarget
           if (v.duration > 0) setProgress((v.currentTime / v.duration) * 100)
         }}
       />
+
       {poster && !videoReady && (
         <img
           src={poster}
@@ -979,9 +1098,18 @@ const FeedVideo = forwardRef<HTMLVideoElement, { src: string; poster?: string; o
         />
       )}
 
-      {/* Mute toggle (Instagram style: bottom-right) */}
+      {/* Mute feedback overlay (8.6) */}
+      {showMuteFeedback && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+          <div className="bg-black/60 backdrop-blur-sm rounded-full p-4 animate-pulse">
+            {muted ? <VolumeX className="w-8 h-8 text-white" /> : <Volume2 className="w-8 h-8 text-white" />}
+          </div>
+        </div>
+      )}
+
+      {/* Mute toggle button (persistent, bottom-right) */}
       <button
-        onClick={(e) => { e.stopPropagation(); setMuted(!muted) }}
+        onClick={(e) => { e.stopPropagation(); toggleMute(); showMuteIcon() }}
         className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 backdrop-blur-sm rounded-full p-2 transition-colors z-10"
       >
         {muted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
