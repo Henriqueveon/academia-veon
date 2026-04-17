@@ -170,6 +170,31 @@ function PostCardImpl({ post, priority = false, isInitial = false, loadEager = f
     heartTimerRef.current = window.setTimeout(() => setShowHeart(false), 900)
   }
 
+  // Carousel tap detector — double tap = like, single tap = navigate to detail
+  const carouselLastTapRef = useRef(0)
+  const carouselTapTimerRef = useRef<number | null>(null)
+  function handleCarouselTap() {
+    if (detailMode || isAudioOnly || post.status === 'uploading' || post.status === 'failed') return
+    const now = Date.now()
+    const delta = now - carouselLastTapRef.current
+    carouselLastTapRef.current = now
+    if (delta < 300 && carouselTapTimerRef.current) {
+      clearTimeout(carouselTapTimerRef.current)
+      carouselTapTimerRef.current = null
+      handleDoubleTap()
+      return
+    }
+    carouselTapTimerRef.current = window.setTimeout(() => {
+      carouselTapTimerRef.current = null
+      navigate(`/post/${post.id}`)
+    }, 300)
+  }
+  useEffect(() => {
+    return () => {
+      if (carouselTapTimerRef.current) clearTimeout(carouselTapTimerRef.current)
+    }
+  }, [])
+
   // Feed query key (must match FeedPage)
   const feedKey = ['feed-posts', user?.id]
 
@@ -538,7 +563,7 @@ function PostCardImpl({ post, priority = false, isInitial = false, loadEager = f
       {/* Carousel */}
       <div
         className={`relative bg-navy-900 ${isAudioOnly ? 'px-4 py-3' : 'aspect-[4/5]'} ${!detailMode && !isAudioOnly && post.status !== 'uploading' && post.status !== 'failed' ? 'cursor-pointer' : ''}`}
-        onClick={!detailMode && !isAudioOnly && post.status !== 'uploading' && post.status !== 'failed' ? () => navigate(`/post/${post.id}`) : undefined}
+        onClick={!detailMode && !isAudioOnly && post.status !== 'uploading' && post.status !== 'failed' ? handleCarouselTap : undefined}
       >
         {/* Uploading / failed skeleton overlay (visible only to the author via feed filter) */}
         {(post.status === 'uploading' || post.status === 'failed') && (
