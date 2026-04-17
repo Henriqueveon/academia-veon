@@ -73,7 +73,7 @@ export function ImageUpload({ value, onChange, folder, label = 'Imagem de capa',
       <input
         ref={fileRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
         onChange={handleFile}
         className="hidden"
       />

@@ -3,7 +3,7 @@ import * as tus from 'tus-js-client'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { signR2Upload, initMultipart, type MultipartInit } from '../../hooks/useMediaUpload'
-import { compressImage } from '../../lib/imageCompression'
+import { compressImage, convertIfHeic } from '../../lib/imageCompression'
 import { useQueryClient } from '@tanstack/react-query'
 import { startPostUpload, type UploadTarget, CHUNK_THRESHOLD } from '../../lib/postUploadManager'
 import { useUploadStore } from '../../stores/uploadStore'
@@ -593,9 +593,10 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
 function ImageInput({ page, onChange }: { page: PageData; onChange: (u: Partial<PageData>) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.files?.[0]
+    if (!raw) return
+    const file = await convertIfHeic(raw)
     const url = URL.createObjectURL(file)
     onChange({ file, previewUrl: url })
   }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { convertIfHeic } from '../lib/imageCompression'
 
 // Upload de imagens (avatar, capa, etc) direto pro R2 via presigned URL
 // Mantém a mesma API do hook antigo (uploadImage + uploading) para não
@@ -6,9 +7,10 @@ import { useState } from 'react'
 export function useImageUpload() {
   const [uploading, setUploading] = useState(false)
 
-  async function uploadImage(file: File, folder: string): Promise<string | null> {
+  async function uploadImage(rawFile: File, folder: string): Promise<string | null> {
     setUploading(true)
     try {
+      const file = await convertIfHeic(rawFile)
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
       const contentType = file.type || 'image/jpeg'
 
@@ -31,7 +33,7 @@ export function useImageUpload() {
       const putRes = await fetch(uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': contentType },
-        body: file,
+        body: file as File,
       })
 
       if (!putRes.ok) {

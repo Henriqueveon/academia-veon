@@ -381,7 +381,7 @@ export function ProfilePage() {
                   </button>
                 </div>
               )}
-              <input ref={coverFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleCoverUpload} className="hidden" />
+              <input ref={coverFileRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={handleCoverUpload} className="hidden" />
             </>
           )}
         </div>
@@ -412,7 +412,7 @@ export function ProfilePage() {
                       <Camera className="w-4 h-4" />
                     )}
                   </button>
-                  <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarUpload} className="hidden" />
+                  <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={handleAvatarUpload} className="hidden" />
                 </>
               )}
             </div>

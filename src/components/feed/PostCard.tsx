@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { Heart, MessageCircle, ChevronLeft, ChevronRight, User, Send, Trash2, MoreHorizontal, Play, Pause, Mic, Eye, UserPlus, UserCheck, Volume2, VolumeX, Shield, ShieldOff, ShieldAlert, X as XIcon, ExternalLink, AlertCircle } from 'lucide-react'
+import { RetryImage } from '../RetryImage'
 import { ShareMenu } from './ShareMenu'
 import { LikesModal } from './LikesModal'
 import { UploadingMedia } from './UploadingMedia'
@@ -566,7 +567,7 @@ function PostCardImpl({ post, priority = false, isInitial = false, loadEager = f
                                   aria-hidden
                                 />
                               )}
-                              <img
+                              <RetryImage
                                 src={page.image_url}
                                 alt=""
                                 width={800}
@@ -632,7 +633,7 @@ function PostCardImpl({ post, priority = false, isInitial = false, loadEager = f
                             aria-hidden
                           />
                         )}
-                        <img
+                        <RetryImage
                           src={currentPageData.image_url}
                           alt=""
                           width={800}
