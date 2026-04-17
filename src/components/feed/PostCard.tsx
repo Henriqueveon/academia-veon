@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, forwardRef, memo } from 'react'
+import useEmblaCarousel from 'embla-carousel-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
@@ -32,7 +33,8 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
   const [showLikes, setShowLikes] = useState(false)
   const [showBlockModal, setShowBlockModal] = useState(false)
   const [blockReason, setBlockReason] = useState('')
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false })
 
   const isOwn = post.user_id === user?.id
   const isGestor = profile?.role === 'gestor'
@@ -118,8 +120,8 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
 
   // Auto-play video when in viewport
   useEffect(() => {
-    if (!videoRef.current) return
-    const video = videoRef.current
+    const video = videoRefs.current[currentPage]
+    if (!video) return
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
@@ -133,6 +135,18 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
     observer.observe(video)
     return () => observer.disconnect()
   }, [currentPage, post.pages])
+
+  // Sync currentPage state with embla swipe and pause off-screen videos
+  useEffect(() => {
+    if (!emblaApi) return
+    const onSelect = () => {
+      const idx = emblaApi.selectedScrollSnap()
+      setCurrentPage(idx)
+      videoRefs.current.forEach((v, i) => { if (v && i !== idx) v.pause() })
+    }
+    emblaApi.on('select', onSelect)
+    return () => { emblaApi.off('select', onSelect) }
+  }, [emblaApi])
 
   // Feed query key (must match FeedPage)
   const feedKey = ['feed-posts', user?.id]
@@ -514,51 +528,109 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
         {(post.status === 'uploading' || post.status === 'failed') && (
           <UploadingMedia post={{ id: post.id, status: post.status, failed_reason: post.failed_reason }} />
         )}
-        {post.status !== 'uploading' && post.status !== 'failed' && currentPageData && (
-          <>
-            {errored ? (
-              <MediaFallback variant={currentPageData.type} />
-            ) : (
-              <div
-                className={`absolute inset-0 transition-opacity duration-200 ${ready || skipGate ? 'opacity-100' : 'opacity-0'}`}
-              >
-                {currentPageData.type === 'image' && currentPageData.image_url && (
-                  <img
-                    src={currentPageData.image_url}
-                    alt=""
-                    width={800}
-                    height={1000}
-                    loading={priority ? 'eager' : 'lazy'}
-                    decoding="async"
-                    fetchPriority={priority ? 'high' : 'low'}
-                    className="w-full h-full object-cover"
-                    onLoad={onMediaLoad}
-                    onError={onMediaError}
-                  />
-                )}
-                {currentPageData.type === 'video' && currentPageData.image_url && (
-                  <FeedVideo
-                    ref={videoRef}
-                    key={currentPageData.id}
-                    src={currentPageData.image_url}
-                    poster={currentPageData.thumbnail_url || undefined}
-                    onCanPlay={onMediaLoad}
-                    onError={onMediaError}
-                    onNavigate={!detailMode ? () => navigate(`/post/${post.id}`) : undefined}
-                  />
-                )}
-                {currentPageData.type === 'audio' && currentPageData.image_url && (
-                  <AudioPlayer src={currentPageData.image_url} duration={currentPageData.duration_seconds} />
-                )}
+        {post.status !== 'uploading' && post.status !== 'failed' && (
+          !isAudioOnly && post.pages.length > 1 ? (
+            // Multi-page — embla carousel with touch/swipe support
+            <>
+              <div ref={emblaRef} className="absolute inset-0 overflow-hidden">
+                <div className="flex h-full">
+                  {post.pages.map((page: any, i: number) => (
+                    <div key={page.id} className="flex-[0_0_100%] min-w-0 relative h-full">
+                      {i === 0 && errored ? (
+                        <MediaFallback variant={page.type} />
+                      ) : (
+                        <div
+                          className={`absolute inset-0 transition-opacity duration-200 ${i === 0 ? (ready || skipGate ? 'opacity-100' : 'opacity-0') : 'opacity-100'}`}
+                        >
+                          {page.type === 'image' && page.image_url && (
+                            <img
+                              src={page.image_url}
+                              alt=""
+                              width={800}
+                              height={1000}
+                              loading={i === 0 && priority ? 'eager' : 'lazy'}
+                              decoding="async"
+                              fetchPriority={i === 0 && priority ? 'high' : 'low'}
+                              className="w-full h-full object-cover"
+                              onLoad={i === 0 ? onMediaLoad : undefined}
+                              onError={i === 0 ? onMediaError : undefined}
+                            />
+                          )}
+                          {page.type === 'video' && page.image_url && (
+                            <FeedVideo
+                              ref={(el) => { videoRefs.current[i] = el }}
+                              key={page.id}
+                              src={page.image_url}
+                              poster={page.thumbnail_url || undefined}
+                              onCanPlay={i === 0 ? onMediaLoad : undefined}
+                              onError={i === 0 ? onMediaError : undefined}
+                              onNavigate={!detailMode ? () => navigate(`/post/${post.id}`) : undefined}
+                            />
+                          )}
+                          {page.type === 'audio' && page.image_url && (
+                            <AudioPlayer src={page.image_url} duration={page.duration_seconds} />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            )}
-            {/* Skeleton overlay until first media loads (fades out on ready) */}
-            {showSkeleton && !errored && (
-              <div className="absolute inset-0 bg-navy-800 animate-pulse z-5 flex items-center justify-center">
-                <Spinner size="md" />
-              </div>
-            )}
-          </>
+              {showSkeleton && !errored && (
+                <div className="absolute inset-0 bg-navy-800 animate-pulse z-5 flex items-center justify-center">
+                  <Spinner size="md" />
+                </div>
+              )}
+            </>
+          ) : (
+            // Single page or audio-only
+            currentPageData && (
+              <>
+                {errored ? (
+                  <MediaFallback variant={currentPageData.type} />
+                ) : (
+                  <div
+                    className={`absolute inset-0 transition-opacity duration-200 ${ready || skipGate ? 'opacity-100' : 'opacity-0'}`}
+                  >
+                    {currentPageData.type === 'image' && currentPageData.image_url && (
+                      <img
+                        src={currentPageData.image_url}
+                        alt=""
+                        width={800}
+                        height={1000}
+                        loading={priority ? 'eager' : 'lazy'}
+                        decoding="async"
+                        fetchPriority={priority ? 'high' : 'low'}
+                        className="w-full h-full object-cover"
+                        onLoad={onMediaLoad}
+                        onError={onMediaError}
+                      />
+                    )}
+                    {currentPageData.type === 'video' && currentPageData.image_url && (
+                      <FeedVideo
+                        ref={(el) => { videoRefs.current[0] = el }}
+                        key={currentPageData.id}
+                        src={currentPageData.image_url}
+                        poster={currentPageData.thumbnail_url || undefined}
+                        onCanPlay={onMediaLoad}
+                        onError={onMediaError}
+                        onNavigate={!detailMode ? () => navigate(`/post/${post.id}`) : undefined}
+                      />
+                    )}
+                    {currentPageData.type === 'audio' && currentPageData.image_url && (
+                      <AudioPlayer src={currentPageData.image_url} duration={currentPageData.duration_seconds} />
+                    )}
+                  </div>
+                )}
+                {/* Skeleton overlay until first media loads (fades out on ready) */}
+                {showSkeleton && !errored && (
+                  <div className="absolute inset-0 bg-navy-800 animate-pulse z-5 flex items-center justify-center">
+                    <Spinner size="md" />
+                  </div>
+                )}
+              </>
+            )
+          )
         )}
 
         {/* Carousel arrows */}
@@ -566,28 +638,28 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
           <>
             {currentPage > 0 && (
               <button
-                onClick={(e) => { e.stopPropagation(); setCurrentPage(currentPage - 1) }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full"
+                onClick={(e) => { e.stopPropagation(); emblaApi?.scrollPrev() }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full z-10"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
             )}
             {currentPage < post.pages.length - 1 && (
               <button
-                onClick={(e) => { e.stopPropagation(); setCurrentPage(currentPage + 1) }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full"
+                onClick={(e) => { e.stopPropagation(); emblaApi?.scrollNext() }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full z-10"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
             {/* Page indicator */}
-            <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full">
+            <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full z-10">
               {currentPage + 1}/{post.pages.length}
             </div>
             {/* Dots */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 filter-[drop-shadow(0_1px_2px_rgba(0,0,0,0.5))]">
               {post.pages.map((_: any, i: number) => (
-                <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === currentPage ? 'bg-white' : 'bg-white/40'}`} />
+                <div key={i} className={`w-2 h-2 rounded-full transition-all ${i === currentPage ? 'bg-white scale-110' : 'bg-white/50'}`} />
               ))}
             </div>
           </>
