@@ -41,14 +41,6 @@ export function useMetaPixel(pixelId?: string | null) {
       script.src = 'https://connect.facebook.net/en_US/fbevents.js'
       document.head.appendChild(script)
 
-      const noscript = document.createElement('noscript')
-      const img = document.createElement('img')
-      img.height = 1
-      img.width = 1
-      img.style.display = 'none'
-      img.src = `https://www.facebook.com/tr?id=${id}&ev=PageView&noscript=1`
-      noscript.appendChild(img)
-      document.body.appendChild(noscript)
     }
 
     window.fbq?.('init', id)
