@@ -7,7 +7,7 @@ import { compressImage, convertIfHeic } from '../../lib/imageCompression'
 import { useQueryClient } from '@tanstack/react-query'
 import { startPostUpload, type UploadTarget, CHUNK_THRESHOLD } from '../../lib/postUploadManager'
 import { useUploadStore } from '../../stores/uploadStore'
-import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause, Link as LinkIcon } from 'lucide-react'
+import { X, Image as ImageIcon, Video, Mic, Plus, Trash2, ChevronLeft, ChevronRight, Square, Play, Pause, Link as LinkIcon, Camera } from 'lucide-react'
 
 const BUNNY_CDN_HOSTNAME = import.meta.env.VITE_BUNNY_CDN_HOSTNAME || 'vz-6d04ab5b-6ae.b-cdn.net'
 
@@ -592,9 +592,11 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
 // ============ IMAGE INPUT ============
 function ImageInput({ page, onChange }: { page: PageData; onChange: (u: Partial<PageData>) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.files?.[0]
+    e.target.value = ''
     if (!raw) return
     const file = await convertIfHeic(raw)
     const url = URL.createObjectURL(file)
@@ -607,17 +609,22 @@ function ImageInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
         {page.previewUrl ? (
           <img src={page.previewUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <button onClick={() => fileRef.current?.click()} className="flex flex-col items-center gap-2 text-text-muted hover:text-text-primary">
+          <div className="flex flex-col items-center gap-2 text-text-muted">
             <ImageIcon className="w-12 h-12" />
-            <span className="text-sm">Clique para enviar foto</span>
             <span className="text-xs">Recomendado: 1080×1350</span>
-          </button>
+          </div>
         )}
       </div>
-      {page.previewUrl && (
-        <button onClick={() => fileRef.current?.click()} className="text-xs text-red-veon hover:text-red-veon-dark">Trocar foto</button>
-      )}
+      <div className="flex gap-2">
+        <button onClick={() => fileRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 bg-bg-input hover:bg-navy-700 text-text-primary text-sm py-2.5 rounded-lg">
+          <ImageIcon className="w-4 h-4" /> {page.previewUrl ? 'Trocar foto' : 'Galeria'}
+        </button>
+        <button onClick={() => cameraRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 bg-red-veon hover:bg-red-veon-dark text-white text-sm py-2.5 rounded-lg">
+          <Camera className="w-4 h-4" /> Tirar foto
+        </button>
+      </div>
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={handleFile} className="hidden" />
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
     </div>
   )
 }
@@ -625,6 +632,7 @@ function ImageInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
 // ============ VIDEO INPUT ============
 function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<PageData>) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -674,15 +682,21 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
 
       <div className="flex gap-2">
         {!page.previewUrl && (
-          <button onClick={() => fileRef.current?.click()} className="w-full flex items-center justify-center gap-2 bg-red-veon hover:bg-red-veon-dark text-white text-sm py-2.5 rounded-lg">
-            <Video className="w-4 h-4" /> Escolher da galeria
-          </button>
+          <>
+            <button onClick={() => fileRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 bg-bg-input hover:bg-navy-700 text-text-primary text-sm py-2.5 rounded-lg">
+              <Video className="w-4 h-4" /> Galeria
+            </button>
+            <button onClick={() => cameraRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 bg-red-veon hover:bg-red-veon-dark text-white text-sm py-2.5 rounded-lg">
+              <Camera className="w-4 h-4" /> Gravar vídeo
+            </button>
+          </>
         )}
         {page.previewUrl && (
           <button onClick={reset} className="text-xs text-red-veon hover:text-red-veon-dark">Trocar vídeo</button>
         )}
       </div>
       <input ref={fileRef} type="file" accept="video/mp4,video/quicktime,video/x-m4v,video/webm" onChange={handleFile} className="hidden" />
+      <input ref={cameraRef} type="file" accept="video/*" capture="environment" onChange={handleFile} className="hidden" />
     </div>
   )
 }
