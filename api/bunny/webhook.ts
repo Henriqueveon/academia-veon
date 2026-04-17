@@ -14,11 +14,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const videoId: string = payload.VideoGuid
-  const cdnUrl = `https://${BUNNY_CDN_HOSTNAME}/${videoId}/play_720p.mp4`
 
-  // Find the post_page that holds this video URL
+  // Match by videoId in URL path — resolution-agnostic
   const pageRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/post_pages?image_url=eq.${encodeURIComponent(cdnUrl)}&select=post_id&limit=1`,
+    `${SUPABASE_URL}/rest/v1/post_pages?image_url=like.*${encodeURIComponent(videoId)}*&select=post_id&limit=1`,
     { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } },
   )
 

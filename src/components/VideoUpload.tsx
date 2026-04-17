@@ -142,7 +142,7 @@ export function VideoUpload({ onUploadComplete, currentVideoId, onRemoveVideo }:
       >
         <Film className="w-8 h-8 text-slate-400" />
         <span className="text-sm text-slate-400">Clique para enviar vídeo</span>
-        <span className="text-xs text-slate-500">MP4, MOV, AVI (máx. 2GB)</span>
+        <span className="text-xs text-slate-500">MP4, MOV, HEVC, WEBM (máx. 2GB)</span>
         <input
           id="video-upload"
           ref={fileInputRef}

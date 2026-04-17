@@ -88,11 +88,11 @@ export async function generateVideoThumbnail(file: File | Blob): Promise<VideoTh
         resolve(null)
       }
 
-      // Safety timeout — if seeking takes too long (some webm files), give up
+      // Safety timeout — HEVC on Chrome and some WebM files never fire onseeked
       setTimeout(() => {
         cleanup()
         resolve(null)
-      }, 8000)
+      }, 5000)
     } catch (err) {
       console.warn('Thumbnail generation crashed:', err)
       resolve(null)

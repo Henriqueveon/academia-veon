@@ -53,20 +53,23 @@ function uploadToBunny(
   })
 }
 
-async function waitForBunnyEncoding(videoId: string, maxMs = 300_000): Promise<void> {
+async function waitForBunnyEncoding(videoId: string, maxMs = 300_000): Promise<string> {
   const interval = 5000
   const start = Date.now()
   while (Date.now() - start < maxMs) {
     await new Promise(r => setTimeout(r, interval))
+    let data: any
     try {
       const res = await fetch(`/api/bunny/video-status?videoId=${videoId}`)
-      if (res.ok) {
-        const data = await res.json()
-        if (data.failed) throw new Error('Falha na transcodagem do vídeo. Tente enviar um arquivo MP4.')
-        if (data.ready) return
-      }
-    } catch { /* keep polling */ }
+      if (!res.ok) continue
+      data = await res.json()
+    } catch {
+      continue
+    }
+    if (data.failed) throw new Error('Falha na transcodagem do vídeo. Tente enviar um arquivo MP4.')
+    if (data.ready && data.bestUrl) return data.bestUrl
   }
+  throw new Error('Tempo esgotado aguardando transcodagem do vídeo.')
 }
 
 const CAPTION_MAX = 500
@@ -188,14 +191,13 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
           .single()
         if (postErr || !post) throw postErr || new Error('Falha ao criar post')
 
-        // 3. Inserir post_pages com as URLs do CDN do Bunny
-        //    thumbnail_url usa a thumbnail automática gerada pelo Bunny após transcodagem
+        // 3. Inserir post_pages — image_url é placeholder até a transcodagem terminar
         const pagesToInsert = pages.map((p, i) => {
           const { videoId } = bunnyCredsPerPage[i]
           return {
             post_id: post.id,
             type: p.type,
-            image_url: `https://${BUNNY_CDN_HOSTNAME}/${videoId}/play_720p.mp4`,
+            image_url: `https://${BUNNY_CDN_HOSTNAME}/${videoId}/pending`,
             thumbnail_url: `https://${BUNNY_CDN_HOSTNAME}/${videoId}/thumbnail.jpg`,
             sort_order: i,
             duration_seconds: p.duration || null,
@@ -238,7 +240,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         const totalBytes = pages.reduce((acc, p) => acc + (p.file?.size ?? 0), 0)
         store.start(post.id, totalBytes)
 
-        const markReady = () => {
+        const markReady = (bestUrls: string[]) => {
           useUploadStore.getState().complete(post.id)
           queryClient.setQueryData<any>(feedKey, (old: any) => {
             if (!old) return old
@@ -246,7 +248,17 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
               ...old,
               pages: old.pages.map((page: any) => ({
                 ...page,
-                posts: page.posts.map((pp: any) => (pp.id === post.id ? { ...pp, status: 'ready' } : pp)),
+                posts: page.posts.map((pp: any) => {
+                  if (pp.id !== post.id) return pp
+                  return {
+                    ...pp,
+                    status: 'ready',
+                    pages: (pp.pages || []).map((pg: any, i: number) => ({
+                      ...pg,
+                      image_url: bestUrls[i] ?? pg.image_url,
+                    })),
+                  }
+                }),
               })),
             }
           })
@@ -259,9 +271,14 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
             })
           )
         ).then(async () => {
-          await Promise.all(bunnyCredsPerPage.map(c => waitForBunnyEncoding(c.videoId)))
+          const bestUrls = await Promise.all(bunnyCredsPerPage.map(c => waitForBunnyEncoding(c.videoId)))
+          await Promise.all(
+            bunnyCredsPerPage.map((c, i) =>
+              supabase.from('post_pages').update({ image_url: bestUrls[i] }).eq('post_id', post.id).eq('sort_order', i)
+            )
+          )
           await supabase.from('posts').update({ status: 'ready' }).eq('id', post.id)
-          markReady()
+          markReady(bestUrls)
         }).catch(err => {
           console.error('Bunny upload error:', err)
           useUploadStore.getState().fail(post.id, err?.message ?? 'Erro no upload')
@@ -290,7 +307,11 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         pages.map(async (p, i) => {
           const mediaBlob = processedFiles[i]
           const mediaCT = mediaBlob.type || (p.type === 'audio' ? 'audio/webm' : 'image/webp')
-          const mediaExt = p.type === 'image' ? (mediaCT === 'image/webp' ? 'webp' : 'jpg') : 'webm'
+          const mediaExt = p.type === 'image'
+            ? (mediaCT === 'image/webp' ? 'webp' : 'jpg')
+            : mediaCT === 'video/mp4' ? 'mp4'
+            : mediaCT === 'video/quicktime' || mediaCT === 'video/mov' ? 'mov'
+            : 'webm'
           const folder = `posts/${p.type}`
 
           let mediaSigned: MediaSign
@@ -660,7 +681,7 @@ function VideoInput({ page, onChange }: { page: PageData; onChange: (u: Partial<
           <button onClick={reset} className="text-xs text-red-veon hover:text-red-veon-dark">Trocar vídeo</button>
         )}
       </div>
-      <input ref={fileRef} type="file" accept="video/mp4,video/quicktime,video/x-m4v" onChange={handleFile} className="hidden" />
+      <input ref={fileRef} type="file" accept="video/mp4,video/quicktime,video/x-m4v,video/webm" onChange={handleFile} className="hidden" />
     </div>
   )
 }
