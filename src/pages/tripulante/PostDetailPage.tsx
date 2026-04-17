@@ -119,7 +119,7 @@ export function PostDetailPage() {
 
       {post && (
         <div className="py-4">
-          <PostCard post={post} detailMode />
+          <PostCard post={post} detailMode onPostUpdate={(updater) => setPost((prev: any) => updater(prev))} />
         </div>
       )}
     </div>

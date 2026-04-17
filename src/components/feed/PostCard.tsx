@@ -18,9 +18,10 @@ interface Props {
   priority?: boolean   // first visible post → fetchpriority="high" + isInitial=true
   isInitial?: boolean  // counted toward feedReadyStore.initialReadyCount (cold-start unlock)
   detailMode?: boolean // true when rendered inside PostDetailPage — expands comments, hides nav link
+  onPostUpdate?: (updater: (p: any) => any) => void // lets PostDetailPage sync its local state
 }
 
-function PostCardImpl({ post, priority = false, isInitial = false, detailMode = false }: Props) {
+function PostCardImpl({ post, priority = false, isInitial = false, detailMode = false, onPostUpdate }: Props) {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -151,7 +152,7 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
   // Feed query key (must match FeedPage)
   const feedKey = ['feed-posts', user?.id]
 
-  // Helper: update a single post in the infinite query cache
+  // Helper: update a single post in the infinite query cache and notify detail page if open
   function updatePostInCache(updater: (p: any) => any) {
     queryClient.setQueryData<any>(feedKey, (old: any) => {
       if (!old) return old
@@ -167,6 +168,7 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
       }
       return (old || []).map((p: any) => (p.id === post.id ? updater(p) : p))
     })
+    onPostUpdate?.(updater)
   }
 
   // Toggle like (optimistic)
