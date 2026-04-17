@@ -440,13 +440,6 @@ function PostCardImpl({ post, priority = false, isInitial = false, detailMode = 
           {!isOwn && user && (
             <>
               <button
-                onClick={() => navigate(`/perfil/${post.user_id}`)}
-                className="p-2 text-text-muted hover:text-text-primary bg-navy-800 hover:bg-navy-700 rounded-lg transition-colors"
-                title="Ver perfil"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-              <button
                 onClick={() => toggleFollow.mutate()}
                 className={`p-2 rounded-lg transition-colors ${
                   isFollowing
