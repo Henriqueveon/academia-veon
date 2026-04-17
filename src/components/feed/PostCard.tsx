@@ -591,6 +591,7 @@ function PostCardImpl({ post, priority = false, isInitial = false, loadEager = f
                               onCanPlay={i === 0 ? onMediaLoad : undefined}
                               onError={i === 0 ? onMediaError : undefined}
                               onDoubleTap={handleDoubleTap}
+                              onSingleTap={!detailMode ? () => navigate(`/post/${post.id}`) : undefined}
                             />
                           )}
                           {page.type === 'audio' && page.image_url && (
@@ -657,6 +658,7 @@ function PostCardImpl({ post, priority = false, isInitial = false, loadEager = f
                         onCanPlay={onMediaLoad}
                         onError={onMediaError}
                         onDoubleTap={handleDoubleTap}
+                        onSingleTap={!detailMode ? () => navigate(`/post/${post.id}`) : undefined}
                       />
                     )}
                     {currentPageData.type === 'audio' && currentPageData.image_url && (
@@ -943,7 +945,8 @@ const FeedVideo = forwardRef<HTMLVideoElement, {
   onCanPlay?: () => void
   onError?: () => void
   onDoubleTap?: () => void
-}>(({ src, poster, duration, onCanPlay, onError, onDoubleTap }, ref) => {
+  onSingleTap?: () => void
+}>(({ src, poster, duration, onCanPlay, onError, onDoubleTap, onSingleTap }, ref) => {
   const localRef = useRef<HTMLVideoElement>(null)
   useEffect(() => {
     if (!ref) return
@@ -1043,11 +1046,15 @@ const FeedVideo = forwardRef<HTMLVideoElement, {
       return
     }
 
-    // Schedule mute toggle (cancellable if second tap arrives)
+    // Schedule single-tap action (cancellable if second tap arrives)
     tapTimerRef.current = window.setTimeout(() => {
       tapTimerRef.current = null
-      toggleMute()
-      showMuteIcon()
+      if (onSingleTap) {
+        onSingleTap()
+      } else {
+        toggleMute()
+        showMuteIcon()
+      }
     }, 300)
   }
 
