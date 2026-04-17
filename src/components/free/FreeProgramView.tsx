@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Lock, Unlock, Target, Users, TrendingUp, PlayCircle } from 'lucide-react'
 import { VideoPlayer } from '../VideoPlayer'
+import { trackCustomPixelEvent } from '../../hooks/useMetaPixel'
 
 // Renderiza texto permitindo grifar palavras entre **asteriscos duplos**
 function renderHighlighted(text: string) {
@@ -96,6 +97,21 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock, o
     )
   }
 
+  const handleVideoPlay = useCallback(() => {
+    trackCustomPixelEvent('VideoPlay', {
+      content_name: active?.title,
+      content_category: program.slug,
+    })
+  }, [active?.title, program.slug])
+
+  const handleVideoProgress = useCallback((percent: number) => {
+    trackCustomPixelEvent('VideoProgress', {
+      content_name: active?.title,
+      content_category: program.slug,
+      value: percent,
+    })
+  }, [active?.title, program.slug])
+
   const handleSelect = (idx: number) => {
     if (!unlocked) {
       onRequestUnlock()
@@ -180,6 +196,8 @@ export function FreeProgramView({ program, lessons, unlocked, onRequestUnlock, o
                   <VideoPlayer
                     videoId={active.bunny_video_id}
                     libraryId={active.bunny_library_id || undefined}
+                    onPlay={handleVideoPlay}
+                    onProgress={handleVideoProgress}
                   />
                   {!unlocked && (
                     <div

@@ -49,8 +49,14 @@ export function useMetaPixel(pixelId?: string | null) {
   }, [pixelId])
 }
 
-// Dispara um evento customizado (ex: Lead). Safe no-op se pixel não iniciado.
+// Dispara um evento padrão do Meta (ex: Lead, ViewContent). Safe no-op se pixel não iniciado.
 export function trackPixelEvent(event: string, params?: Record<string, any>) {
   if (typeof window === 'undefined') return
   window.fbq?.('track', event, params)
+}
+
+// Dispara um evento customizado (ex: VideoPlay, VideoProgress). Safe no-op se pixel não iniciado.
+export function trackCustomPixelEvent(event: string, params?: Record<string, any>) {
+  if (typeof window === 'undefined') return
+  window.fbq?.('trackCustom', event, params)
 }
