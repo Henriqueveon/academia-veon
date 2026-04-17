@@ -273,7 +273,7 @@ export function CreatePostWizard({ onClose, onCreated }: Props) {
         ).then(async () => {
           const bestUrls = await Promise.all(bunnyCredsPerPage.map(c => waitForBunnyEncoding(c.videoId)))
           await Promise.all(
-            bunnyCredsPerPage.map((c, i) =>
+            bunnyCredsPerPage.map((_, i) =>
               supabase.from('post_pages').update({ image_url: bestUrls[i] }).eq('post_id', post.id).eq('sort_order', i)
             )
           )
